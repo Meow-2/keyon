@@ -27,6 +27,8 @@ Follow the conventions of the language or framework introduced by the project. K
 
 Use descriptive names for files, modules, functions, and tests. Prefer lowercase directory names such as `src/`, `tests/`, and `assets/`. Keep modules focused on one responsibility, and avoid broad utility files unless shared behavior is genuinely reused.
 
+Change only the necessary parts for the task. Prefer reusing existing mature code, libraries, and local patterns before adding new implementations.
+
 ## Testing Guidelines
 
 Place tests under `tests/` and name them to match the behavior under test, for example `test_parser.py`, `parser.test.ts`, or `ParserTest.cs` depending on the stack. Tests should cover normal behavior, error paths, and edge cases for any public API or user-facing workflow.
@@ -45,11 +47,10 @@ Do not commit secrets, credentials, private keys, or machine-specific configurat
 
 ## Agent-Specific Instructions
 
-When working in this repository, think through problems in English and answer the user in Chinese unless they request another language.
+When working in this repository, think through problems in English and answer the user in Chinese unless they request another language. Code comments should also be written in Chinese.
 
 Structure explanations with the McKinsey Pyramid Principle: start with the main conclusion, then provide the key supporting points, followed by necessary details or examples.
 
 Assume the development environment is Windows 11 with PowerShell as the default terminal. WSL2 is also available and fully functional, but prefer PowerShell commands unless Linux tooling is specifically better for the task.
 
 Act as the technical expert for the project. Provide detailed, concrete answers when explaining decisions, implementation options, risks, commands, or verification steps.
-
