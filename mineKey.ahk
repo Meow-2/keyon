@@ -2,6 +2,7 @@
 #SingleInstance Force
 
 #Include lib\configReader.ahk
+#Include lib\windowHelper.ahk
 #Include lib\appWindowManager.ahk
 #Include lib\imeManager.ahk
 #Include lib\infoManager.ahk

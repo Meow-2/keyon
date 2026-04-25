@@ -5,6 +5,31 @@ class configReader {
     this.configPath := configPath
   }
 
+  ; 读取 INI 文件里的所有 section 名称。
+  ; 文件不存在或读取失败时返回空数组，让调用方自然跳过配置加载。
+  readSectionNames() {
+    sectionNames := []
+
+    if !FileExist(this.configPath) {
+      return sectionNames
+    }
+
+    try {
+      sectionText := IniRead(this.configPath)
+    } catch Error {
+      return sectionNames
+    }
+
+    for sectionName in StrSplit(sectionText, "`n", "`r") {
+      sectionName := Trim(sectionName)
+      if (sectionName != "") {
+        sectionNames.Push(sectionName)
+      }
+    }
+
+    return sectionNames
+  }
+
   ; 读取 INI 文本字段。
   ; 缺少配置或读取失败时返回默认值，避免单个字段错误中断主脚本。
   readText(sectionName, keyName, defaultValue := "") {

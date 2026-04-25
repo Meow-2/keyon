@@ -18,7 +18,6 @@ class imeManager {
   ; 读取通用配置和快捷键规则。
   ; profile 决定默认中文转换码；switchMethod 决定使用 DLL 还是模拟按键切换。
   __New(configPath) {
-    this.configPath := configPath
     this.config := configReader(configPath)
     this.enabled := this.config.readBool("general", "enabled", true)
     this.profile := this.config.readText("general", "profile", "microsoftPinyin")
@@ -252,18 +251,7 @@ class imeManager {
   loadHotkeyRules() {
     hotkeyRules := []
 
-    if !FileExist(this.configPath) {
-      return hotkeyRules
-    }
-
-    try {
-      sectionNames := IniRead(this.configPath)
-    } catch Error {
-      return hotkeyRules
-    }
-
-    for sectionName in StrSplit(sectionNames, "`n", "`r") {
-      sectionName := Trim(sectionName)
+    for sectionName in this.config.readSectionNames() {
       if (sectionName = "" || !this.startsWith(sectionName, "hotkey.")) {
         continue
       }

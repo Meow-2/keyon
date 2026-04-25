@@ -1,9 +1,8 @@
 ; 工具类快捷键管理器。
 ; 当前只负责“查看当前窗口信息和输入法状态”，后续可继续承载其他诊断类快捷键。
 class infoManager {
-  ; 保存配置路径，并接收 imeManager 实例以复用输入法状态读取逻辑。
+  ; 创建配置读取器，并接收 imeManager 实例以复用输入法状态读取逻辑。
   __New(configPath, inputMethodManager) {
-    this.configPath := configPath
     this.inputMethodManager := inputMethodManager
     this.config := configReader(configPath)
     this.enabled := this.config.readBool("windowInfo", "enabled", false)
@@ -113,7 +112,7 @@ class infoManager {
       }
     }
 
-    winId := this.toWinId(activeHwnd)
+    winId := windowHelper.toWinId(activeHwnd)
     title := this.getWindowTitle(winId)
     className := this.getWindowClass(winId)
     processName := this.getWindowProcessName(winId)
@@ -185,7 +184,7 @@ class infoManager {
   ; inputHwnd 为空时退回当前焦点窗口，主要用于窗口创建前的初始尺寸估算。
   buildInputMethodText(inputHwnd) {
     focusedHwnd := inputHwnd ? inputHwnd : this.inputMethodManager.getFocusedWindow()
-    focusedWinId := focusedHwnd ? this.toWinId(focusedHwnd) : ""
+    focusedWinId := focusedHwnd ? windowHelper.toWinId(focusedHwnd) : ""
     inputState := focusedHwnd ? this.inputMethodManager.getInputState(focusedHwnd) : "EN"
     openStatus := focusedHwnd ? this.inputMethodManager.getOpenStatus(focusedHwnd) : 0
     conversionMode := focusedHwnd ? this.inputMethodManager.getConversionMode(focusedHwnd) : 0
@@ -301,8 +300,4 @@ class infoManager {
     }
   }
 
-  ; 把裸 hwnd 转成 AHK WinTitle 可识别的 ahk_id 表达式。
-  toWinId(hwnd) {
-    return "ahk_id " hwnd
-  }
 }

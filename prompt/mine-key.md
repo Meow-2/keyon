@@ -114,6 +114,7 @@
 │   └── tools.ini            # 工具类快捷键配置
 ├── lib/
 │   ├── configReader.ahk     # INI 配置读取工具
+│   ├── windowHelper.ahk     # 跨模块复用的窗口基础工具
 │   ├── appWindowManager.ahk # 应用启动、呼出、窗口切换和焦点管理
 │   ├── imeManager.ahk       # 输入法状态检测与切换
 │   ├── infoManager.ahk      # 当前窗口与输入法信息查看

@@ -22,9 +22,8 @@ class appRule {
 ; 应用窗口管理器。
 ; 负责读取应用配置、注册快捷键，并在快捷键触发时执行启动、呼出、窗口切换和聚焦。
 class appWindowManager {
-  ; 保存配置路径，并在创建对象时立即读取所有可用应用规则。
+  ; 创建配置读取器，并立即读取所有可用应用规则。
   __New(configPath) {
-    this.configPath := configPath
     this.config := configReader(configPath)
     this.appRules := this.loadAppRules()
   }
@@ -76,22 +75,7 @@ class appWindowManager {
   loadAppRules() {
     appRules := []
 
-    if !FileExist(this.configPath) {
-      return appRules
-    }
-
-    try {
-      sectionNames := IniRead(this.configPath)
-    } catch Error {
-      return appRules
-    }
-
-    for sectionName in StrSplit(sectionNames, "`n", "`r") {
-      sectionName := Trim(sectionName)
-      if (sectionName = "") {
-        continue
-      }
-
+    for sectionName in this.config.readSectionNames() {
       if !this.config.readBool(sectionName, "enabled", true) {
         continue
       }
@@ -147,49 +131,48 @@ class appWindowManager {
       return []
     }
 
+    return this.withWindowMatchOptions(includeHidden, matchMode, () => WinGetList(winTitle), [])
+  }
+
+  ; 等待某条规则匹配到窗口。
+  ; WinWait 也依赖当前 TitleMatchMode，因此和窗口枚举复用同一套匹配上下文。
+  waitForWindow(currentRule) {
+    if (currentRule.winTitle = "") {
+      return false
+    }
+
+    exists := this.withWindowMatchOptions(
+      currentRule.detectHidden,
+      currentRule.matchMode,
+      () => WinWait(currentRule.winTitle, , currentRule.waitSeconds),
+      0
+    )
+    return exists != 0
+  }
+
+  ; 在指定窗口匹配环境下执行操作，并恢复 AHK 全局匹配设置。
+  ; DetectHiddenWindows 和 TitleMatchMode 都是进程级状态，集中封装可以避免某次窗口查找污染后续逻辑。
+  withWindowMatchOptions(includeHidden, matchMode, action, defaultValue) {
     previousDetectHiddenWindows := A_DetectHiddenWindows
     previousTitleMatchMode := A_TitleMatchMode
     DetectHiddenWindows(includeHidden)
     SetTitleMatchMode(this.toAhkTitleMatchMode(matchMode))
 
     try {
-      hwnds := WinGetList(winTitle)
+      result := action.Call()
     } catch Error {
-      hwnds := []
+      result := defaultValue
     }
 
     DetectHiddenWindows(previousDetectHiddenWindows)
     SetTitleMatchMode(previousTitleMatchMode)
-    return hwnds
-  }
-
-  ; 等待某条规则匹配到窗口。
-  ; WinWait 也依赖当前 TitleMatchMode，因此这里和 findWindows 一样临时切换匹配模式。
-  waitForWindow(currentRule) {
-    if (currentRule.winTitle = "") {
-      return false
-    }
-
-    previousDetectHiddenWindows := A_DetectHiddenWindows
-    previousTitleMatchMode := A_TitleMatchMode
-    DetectHiddenWindows(currentRule.detectHidden)
-    SetTitleMatchMode(this.toAhkTitleMatchMode(currentRule.matchMode))
-
-    try {
-      exists := WinWait(currentRule.winTitle, , currentRule.waitSeconds)
-    } catch Error {
-      exists := 0
-    }
-
-    DetectHiddenWindows(previousDetectHiddenWindows)
-    SetTitleMatchMode(previousTitleMatchMode)
-    return exists != 0
+    return result
   }
 
   ; 判断窗口是否适合被管理。
   ; 当前标准是窗口仍然存在，并且标题不为空；空标题窗口通常是内部窗口或不可交互窗口。
   isUsableWindow(hwnd) {
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
     return WinExist(winId) && WinGetTitle(winId) != ""
   }
 
@@ -200,7 +183,7 @@ class appWindowManager {
       return false
     }
 
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
     style := WinGetStyle(winId)
 
     ; WS_VISIBLE 表示窗口处于可见状态；最小化窗口虽然存在，但不算显示在桌面上。
@@ -225,7 +208,7 @@ class appWindowManager {
   ; 显示、恢复并激活指定窗口。
   ; 返回是否成功让该窗口成为活动窗口；失败时返回 false，不抛出异常中断脚本。
   focusWindow(hwnd, waitSeconds := 3) {
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
 
     if !WinExist(winId) {
       return false
@@ -344,12 +327,6 @@ class appWindowManager {
 
     shellApplication := ComObject("Shell.Application").Windows.Item(SWC_DESKTOP).Document.Application
     shellApplication.ShellExecute(target, args, workingDir, "open", 1)
-  }
-
-  ; 把裸 hwnd 转成 AHK WinTitle 可识别的 ahk_id 表达式。
-  ; 统一封装后，调用 WinExist/WinActivate/WinShow 时不容易漏写前缀。
-  toWinId(hwnd) {
-    return "ahk_id " hwnd
   }
 
   ; 统一配置里的窗口匹配方式。

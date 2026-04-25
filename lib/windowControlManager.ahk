@@ -2,7 +2,6 @@
 ; 负责关闭当前窗口，以及在当前桌面可管理窗口之间向前/向后切换。
 class windowControlManager {
   __New(configPath) {
-    this.configPath := configPath
     this.config := configReader(configPath)
     this.enabled := this.config.readBool("windowControl", "enabled", false)
     this.closeHotkey := this.config.readText("windowControl", "closeHotkey")
@@ -18,10 +17,10 @@ class windowControlManager {
     this.previewGui := ""
     this.hidePreviewCallback := ObjBindMethod(this, "hideWindowPreview")
     this.systemSwitchActive := false
-    this.systemNextKey := this.buildSystemCycleKey(this.nextHotkey)
-    this.systemPreviousKey := this.buildSystemCycleKey(this.previousHotkey)
-    this.systemNextCallback := ObjBindMethod(this, "continueSystemWindowSwitch", 1)
-    this.systemPreviousCallback := ObjBindMethod(this, "continueSystemWindowSwitch", -1)
+    this.systemCycleHotkeys := [
+      { hotkey: this.buildSystemCycleKey(this.nextHotkey), callback: ObjBindMethod(this, "continueSystemWindowSwitch", 1) },
+      { hotkey: this.buildSystemCycleKey(this.previousHotkey), callback: ObjBindMethod(this, "continueSystemWindowSwitch", -1) }
+    ]
     this.finishSystemSwitchCallback := ObjBindMethod(this, "finishSystemWindowSwitchWhenWinReleased")
   }
 
@@ -63,7 +62,7 @@ class windowControlManager {
     }
 
     try {
-      WinClose(this.toWinId(activeHwnd))
+      WinClose(windowHelper.toWinId(activeHwnd))
       return true
     } catch Error {
       return false
@@ -139,7 +138,7 @@ class windowControlManager {
     if !this.systemSwitchActive {
       Send("{Alt down}")
       this.systemSwitchActive := true
-      this.enableSystemCycleHotkeys()
+      this.setSystemCycleHotkeys("On")
       SetTimer(this.finishSystemSwitchCallback, 20)
     }
 
@@ -191,24 +190,19 @@ class windowControlManager {
     if this.systemSwitchActive {
       Send("{Alt up}")
       this.systemSwitchActive := false
-      this.disableSystemCycleHotkeys()
+      this.setSystemCycleHotkeys("Off")
     }
   }
 
-  ; 启用 system 切换会话内的裸按键接管。
+  ; 批量启停 system 切换会话内的裸按键接管。
   ; 只在 Alt+Tab 界面打开期间启用，避免平时拦截用户正常输入 J/K。
-  enableSystemCycleHotkeys() {
-    this.setSystemCycleHotkey(this.systemNextKey, this.systemNextCallback, "On")
-    this.setSystemCycleHotkey(this.systemPreviousKey, this.systemPreviousCallback, "On")
+  setSystemCycleHotkeys(state) {
+    for item in this.systemCycleHotkeys {
+      this.setSystemCycleHotkey(item.hotkey, item.callback, state)
+    }
   }
 
-  ; 关闭 system 切换会话内的裸按键接管。
-  disableSystemCycleHotkeys() {
-    this.setSystemCycleHotkey(this.systemNextKey, this.systemNextCallback, "Off")
-    this.setSystemCycleHotkey(this.systemPreviousKey, this.systemPreviousCallback, "Off")
-  }
-
-  ; 动态启停临时热键。
+  ; 动态启停单个临时热键。
   ; 热键注册失败不应影响主窗口切换，最坏情况只是连续 J/K 不生效。
   setSystemCycleHotkey(hotkeyName, callback, state) {
     if (hotkeyName = "") {
@@ -258,13 +252,13 @@ class windowControlManager {
     cycleHwnds := []
 
     for hwnd in this.windowCycleHwnds {
-      if this.arrayHas(currentHwnds, hwnd) {
+      if windowHelper.arrayHas(currentHwnds, hwnd) {
         cycleHwnds.Push(hwnd)
       }
     }
 
     for hwnd in currentHwnds {
-      if !this.arrayHas(cycleHwnds, hwnd) {
+      if !windowHelper.arrayHas(cycleHwnds, hwnd) {
         cycleHwnds.Push(hwnd)
       }
     }
@@ -285,17 +279,6 @@ class windowControlManager {
     }
 
     return hwnds
-  }
-
-  ; 判断数组中是否已有指定窗口句柄。
-  arrayHas(values, expectedValue) {
-    for value in values {
-      if (value = expectedValue) {
-        return true
-      }
-    }
-
-    return false
   }
 
   ; 统一窗口切换模式写法。
@@ -397,7 +380,7 @@ class windowControlManager {
     activeHwnd := WinExist("A")
 
     try {
-      WinGetPos(&activeX, &activeY, &activeWidth, &activeHeight, this.toWinId(activeHwnd))
+      WinGetPos(&activeX, &activeY, &activeWidth, &activeHeight, windowHelper.toWinId(activeHwnd))
       centerX := activeX + activeWidth / 2
       centerY := activeY + activeHeight / 2
     } catch Error {
@@ -431,13 +414,13 @@ class windowControlManager {
   ; 生成窗口预览列表中的单行描述。
   ; 标题过长时截断，并追加进程名帮助区分同名窗口。
   getWindowLabel(hwnd) {
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
 
     try {
       title := WinGetTitle(winId)
       processName := WinGetProcessName(winId)
     } catch Error {
-      return this.toWinId(hwnd)
+      return windowHelper.toWinId(hwnd)
     }
 
     title := StrReplace(title, "`r", " ")
@@ -452,7 +435,7 @@ class windowControlManager {
   ; 判断窗口是否适合参与全局窗口切换。
   ; 排除桌面、任务栏、工具窗口、隐藏窗口和空标题窗口。
   isSwitchableWindow(hwnd) {
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
 
     if !WinExist(winId) {
       return false
@@ -509,7 +492,7 @@ class windowControlManager {
   ; 显示、恢复并激活指定窗口。
   ; 最小化窗口会先恢复，保证切换后能看到目标窗口。
   focusWindow(hwnd) {
-    winId := this.toWinId(hwnd)
+    winId := windowHelper.toWinId(hwnd)
 
     try {
       if (WinGetMinMax(winId) = -1) {
@@ -524,8 +507,4 @@ class windowControlManager {
     }
   }
 
-  ; 把裸 hwnd 转成 AHK WinTitle 可识别的 ahk_id 表达式。
-  toWinId(hwnd) {
-    return "ahk_id " hwnd
-  }
 }
