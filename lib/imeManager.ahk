@@ -2,13 +2,14 @@
 ; 只保存热键、目标状态和是否透传原按键，不直接执行切换。
 class imeHotkeyRule {
   ; 初始化一条输入法快捷键规则。
-  ; targetState 支持 CN、EN、TOGGLE；passThrough 控制按键是否保留原本作用。
-  __New(name, hotkey, targetState, passThrough, switchMethod) {
+  ; targetState 支持 CN、EN、TOGGLE；sendAfterSwitch 用于在切换后主动补发原按键。
+  __New(name, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch) {
     this.name := name
     this.hotkey := hotkey
     this.targetState := targetState
     this.passThrough := passThrough
     this.switchMethod := switchMethod
+    this.sendAfterSwitch := sendAfterSwitch
   }
 }
 
@@ -50,9 +51,10 @@ class imeManager {
   }
 
   ; 输入法快捷键触发入口。
-  ; currentRule 会被继续传入，用于判断 passThrough 和避免同键二次切换。
+  ; currentRule 会被继续传入，用于判断 passThrough、切换方式和切换后的补发按键。
   handleStateHotkey(currentRule, *) {
     this.switchToState(currentRule.targetState, currentRule)
+    this.sendAfterSwitch(currentRule)
   }
 
   ; 将当前输入法切换到指定目标状态。
@@ -264,15 +266,26 @@ class imeManager {
       targetState := this.normalizeTargetState(this.config.readText(sectionName, "targetState"))
       passThrough := this.config.readBool(sectionName, "passThrough", false)
       switchMethod := this.normalizeSwitchMethod(this.config.readText(sectionName, "switchMethod", this.switchMethod))
+      sendAfterSwitch := this.config.readText(sectionName, "sendAfterSwitch")
 
       if (hotkey = "" || targetState = "") {
         continue
       }
 
-      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod))
+      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch))
     }
 
     return hotkeyRules
+  }
+
+  ; 在输入法切换逻辑执行后主动补发按键。
+  ; 典型场景是拦截 Esc：先切到英文，再发送 {Esc}，避免透传 Esc 抢先改变焦点。
+  sendAfterSwitch(currentRule) {
+    if !IsObject(currentRule) || currentRule.sendAfterSwitch = "" {
+      return
+    }
+
+    SendInput(currentRule.sendAfterSwitch)
   }
 
   ; 生成最终传给 AHK Hotkey() 的热键名称。

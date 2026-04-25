@@ -67,6 +67,8 @@
 
 状态切换快捷键通过 `config/ime.ini` 配置。每个快捷键可配置 `passThrough`：为 `true` 时，按键保留原本作用；为 `false` 时，按键只用于切换输入法状态。
 
+每个快捷键可配置 `sendAfterSwitch`：切换逻辑执行后再主动发送指定按键，值使用 AHK `Send` 语法。典型用法是 `hotkey=Esc`、`passThrough=false`、`sendAfterSwitch={Esc}`，表示先切到英文，再发送一次 `Esc`。
+
 如果 `passThrough=true` 且触发键本身就是当前切换方式使用的按键，程序应先等待原按键生效，避免额外模拟同一按键造成二次切换。
 
 ## 信息查看
@@ -240,6 +242,7 @@ hotkey=CapsLock
 targetState=EN
 passThrough=false
 switchMethod=dll
+sendAfterSwitch=
 ```
 
 字段说明：
@@ -251,6 +254,7 @@ switchMethod=dll
 - `cnConversionMode`：可选；覆盖当前配置档切换到中文时使用的转换码。
 - `targetState`：快捷键触发后的目标状态，支持 `CN`、`EN`、`TOGGLE`。
 - `passThrough`：是否让快捷键在触发切换后保留按键原本作用。
+- `sendAfterSwitch`：切换逻辑执行后主动发送的按键；适合需要先切输入法再保留原按键作用的场景，例如 `{Esc}`。
 
 AHK 自定义组合键使用 `前缀键 & 触发键` 格式，例如 `hotkey=Esc & a`。输入法热键注册逻辑应保留该格式，不自动添加 `$` 前缀。
 

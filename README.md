@@ -131,6 +131,18 @@ passThrough=false
 switchMethod=dll
 ```
 
+下面示例把 `Esc` 配置为“先切到英文，再发送 Esc”，用于保留 Esc 原本关闭弹窗、退出输入框等作用，同时避免透传 Esc 抢先改变焦点：
+
+```ini
+[hotkey.toEnglish]
+enabled=true
+hotkey=Esc
+targetState=EN
+passThrough=false
+switchMethod=dll
+sendAfterSwitch={Esc}
+```
+
 下面示例把右 Shift 配置为切换到中文状态，并保留右 Shift 原本作用：
 
 ```ini
@@ -158,6 +170,7 @@ switchMethod=dll
 - `hotkey`：触发切换的 AHK 热键。
 - `targetState`：目标状态，支持 `CN`、`EN`、`TOGGLE`。
 - `passThrough`：是否保留按键原本作用。`true` 会让按键继续传递给系统或当前应用，`false` 会拦截该按键。
+- `sendAfterSwitch`：切换逻辑执行后主动发送的按键。可选，使用 AHK `Send` 语法，例如 `{Esc}`。需要先切输入法再保留原按键作用时，优先使用 `passThrough=false` 加 `sendAfterSwitch`。
 
 `Esc + 字母` 这类组合键使用 AHK 自定义组合键写法，例如：
 
