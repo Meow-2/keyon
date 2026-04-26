@@ -15,7 +15,10 @@ class windowControlManager {
     this.previewWidth := this.config.readNumber("windowControl", "previewWidth", 760)
     this.windowCycleHwnds := []
     this.previewGui := ""
+    this.previewList := ""
+    this.previewSize := ""
     this.hidePreviewCallback := ObjBindMethod(this, "hideWindowPreview")
+    this.hideManagedPreviewOnWinReleaseCallback := ObjBindMethod(this, "hideManagedPreviewWhenWinReleased")
     this.systemSwitchActive := false
     this.systemCycleHotkeys := [
       { hotkey: this.buildSystemCycleKey(this.nextHotkey), callback: ObjBindMethod(this, "continueSystemWindowSwitch", 1) },
@@ -100,7 +103,7 @@ class windowControlManager {
       }
     }
 
-    this.showWindowPreview(hwnds, targetIndex)
+    this.showWindowPreview(hwnds, targetIndex, this.shouldHidePreviewOnWinRelease(A_ThisHotkey))
     return this.focusWindow(hwnds[targetIndex])
   }
 
@@ -295,13 +298,72 @@ class windowControlManager {
   }
 
   ; 显示本次窗口切换的候选列表。
-  ; 使用居中的轻量 GUI 作为预览，箭头标记即将切换到的目标窗口。
-  showWindowPreview(hwnds, targetIndex) {
+  ; 使用居中的轻量 GUI 作为预览，当前目标通过列表选中态高亮。
+  showWindowPreview(hwnds, targetIndex, hideOnWinRelease := false) {
     if (this.previewSeconds <= 0) {
       return
     }
 
+    this.ensurePreviewGui()
+    this.updatePreviewList(hwnds, targetIndex)
+
+    position := this.getCenteredPreviewPosition(this.previewSize.width, this.previewSize.height)
+    this.previewGui.Show("NoActivate x" position.x " y" position.y)
+    this.schedulePreviewHide(hideOnWinRelease)
+  }
+
+  ; 隐藏窗口切换预览。
+  ; 预览窗口常驻复用，只隐藏不销毁，避免连续切换时反复创建顶层 GUI。
+  hideWindowPreview() {
+    SetTimer(this.hidePreviewCallback, 0)
+    SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 0)
+
+    try if IsObject(this.previewGui) {
+      this.previewGui.Hide()
+    }
+
+  }
+
+  ; Win 组合键触发的 managed 预览在松开 Win 时应立即消失。
+  ; 只在物理 Win 当前仍按下时启用，避免普通单次切换误触发这条路径。
+  hideManagedPreviewWhenWinReleased() {
+    if this.isWinPhysicallyDown() {
+      return
+    }
+
     this.hideWindowPreview()
+  }
+
+  ; 只有由 Win 修饰键触发且当前仍按住物理 Win 时，才需要在松开 Win 后立刻隐藏预览。
+  shouldHidePreviewOnWinRelease(hotkeyName) {
+    return this.isWinPhysicallyDown() && this.isWinModifierHotkey(hotkeyName)
+  }
+
+  ; 按当前触发方式安排预览隐藏时机。
+  ; Win 组合键驱动的 managed 会话由 Win 键生命周期控制，其余情况仍使用超时隐藏。
+  schedulePreviewHide(hideOnWinRelease) {
+    SetTimer(this.hidePreviewCallback, 0)
+    SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 0)
+
+    if hideOnWinRelease {
+      SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 20)
+      return
+    }
+
+    SetTimer(this.hidePreviewCallback, -Round(this.previewSeconds * 1000))
+  }
+
+  ; 判断热键字符串是否带 Win 修饰键。
+  isWinModifierHotkey(hotkeyName) {
+    return InStr(hotkeyName, "#")
+  }
+
+  ; 预创建窗口切换预览 GUI。
+  ; 预览使用单个常驻列表控件，只刷新列表项和选中项，避免每次切换都重建整棵控件树。
+  ensurePreviewGui() {
+    if IsObject(this.previewGui) {
+      return
+    }
 
     previewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +Border")
     previewGui.BackColor := "FFFFFF"
@@ -310,52 +372,51 @@ class windowControlManager {
     previewGui.SetFont("s" this.previewFontSize, "Microsoft YaHei UI")
     previewGui.Add("Text", "w" this.previewWidth, "窗口切换")
 
-    maxItems := Min(this.previewMaxItems, hwnds.Length)
-    prefixWidth := 32
-    labelWidth := this.previewWidth - prefixWidth - 8
-
-    Loop maxItems {
-      index := A_Index
-      hwnd := hwnds[index]
-      lineText := index ". " this.getWindowLabel(hwnd)
-      prefixText := index = targetIndex ? "▶" : ""
-
-      if (index = targetIndex) {
-        previewGui.SetFont("s" this.previewFontSize " Bold c0067C0", "Microsoft YaHei UI")
-      } else {
-        previewGui.SetFont("s" this.previewFontSize " Norm c202020", "Microsoft YaHei UI")
-      }
-
-      previewGui.Add("Text", "xm y+4 w" prefixWidth " Right", prefixText)
-      previewGui.Add("Text", "x+8 yp w" labelWidth, lineText)
-    }
-
-    if (hwnds.Length > maxItems) {
-      previewGui.SetFont("s" this.previewFontSize " Norm c606060", "Microsoft YaHei UI")
-      previewGui.Add("Text", "xm y+4 w" prefixWidth " Right", "")
-      previewGui.Add("Text", "x+8 yp w" labelWidth, "... +" (hwnds.Length - maxItems))
-    }
-
+    rowCount := Max(3, this.previewMaxItems + 2)
+    previewList := previewGui.Add("ListView", "xm y+8 w" this.previewWidth " r" rowCount " -Hdr -Multi", ["窗口"])
+    previewList.ModifyCol(1, this.previewWidth - 24)
     previewGui.Show("NoActivate Hide AutoSize")
 
-    previewSize := this.getWindowSize(previewGui.Hwnd)
-    position := this.getCenteredPreviewPosition(previewSize.width, previewSize.height)
-    previewGui.Show("NoActivate x" position.x " y" position.y)
-
     this.previewGui := previewGui
-    SetTimer(this.hidePreviewCallback, -Round(this.previewSeconds * 1000))
+    this.previewList := previewList
+    this.previewSize := this.getWindowSize(previewGui.Hwnd)
   }
 
-  ; 隐藏窗口切换预览。
-  ; 每次显示新预览前先销毁旧预览，避免连续切换时残留多个窗口。
-  hideWindowPreview() {
-    try {
-      if IsObject(this.previewGui) {
-        this.previewGui.Destroy()
+  ; 按当前切换目标刷新预览列表。
+  ; 目标窗口尽量保持在可视区域中部，顶部和底部用省略行表示还有更多候选。
+  updatePreviewList(hwnds, targetIndex) {
+    previewList := this.previewList
+    previewList.Delete()
+
+    maxItems := Min(this.previewMaxItems, hwnds.Length)
+    startIndex := Max(1, targetIndex - Floor(maxItems / 2))
+    endIndex := startIndex + maxItems - 1
+
+    if (endIndex > hwnds.Length) {
+      endIndex := hwnds.Length
+      startIndex := Max(1, endIndex - maxItems + 1)
+    }
+
+    selectedRow := 0
+    if (startIndex > 1) {
+      previewList.Add("", "... +" (startIndex - 1))
+    }
+
+    Loop (endIndex - startIndex + 1) {
+      index := startIndex + A_Index - 1
+      rowIndex := previewList.Add("", index ". " this.getWindowLabel(hwnds[index]))
+      if (index = targetIndex) {
+        selectedRow := rowIndex
       }
     }
 
-    this.previewGui := ""
+    if (endIndex < hwnds.Length) {
+      previewList.Add("", "... +" (hwnds.Length - endIndex))
+    }
+
+    if (selectedRow > 0) {
+      previewList.Modify(selectedRow, "Select Focus Vis")
+    }
   }
 
   ; 读取窗口尺寸。
