@@ -16,6 +16,8 @@ class windowControlManager {
     this.windowCycleHwnds := []
     this.previewGui := ""
     this.previewSize := ""
+    this.previewDpiScale := A_ScreenDPI ? A_ScreenDPI / 96 : 1
+    this.previewFrameSize := { width: 0, height: 0 }
     this.previewRowBars := []
     this.previewRowTexts := []
     this.hidePreviewCallback := ObjBindMethod(this, "hideWindowPreview")
@@ -341,14 +343,9 @@ class windowControlManager {
     visibleRowCount := this.updatePreviewList(hwnds, targetIndex)
 
     estimatedSize := this.buildPreviewWindowSize(visibleRowCount)
-    position := this.getCenteredPreviewPosition(estimatedSize.width, estimatedSize.height)
+    actualSize := this.getRealizedPreviewWindowSize(estimatedSize)
+    position := this.getCenteredPreviewPosition(actualSize.width, actualSize.height)
     this.previewGui.Show("NoActivate w" estimatedSize.width " h" estimatedSize.height " x" position.x " y" position.y)
-
-    actualSize := this.getWindowSize(this.previewGui.Hwnd)
-    if (actualSize.width != estimatedSize.width || actualSize.height != estimatedSize.height) {
-      actualPosition := this.getCenteredPreviewPosition(actualSize.width, actualSize.height)
-      this.previewGui.Show("NoActivate x" actualPosition.x " y" actualPosition.y)
-    }
 
     this.schedulePreviewHide(hideOnWinRelease)
   }
@@ -431,6 +428,7 @@ class windowControlManager {
     this.previewSize := this.buildPreviewWindowSize(rowCount)
     previewGui.Show("NoActivate Hide w" this.previewSize.width " h" this.previewSize.height)
     this.applyPreviewWindowStyle(previewGui)
+    this.previewFrameSize := this.getPreviewFrameSize(this.previewSize, this.getWindowSize(previewGui.Hwnd))
 
     this.previewGui := previewGui
   }
@@ -530,6 +528,27 @@ class windowControlManager {
     return {
       width: this.previewWidth + (24 * 2) + 2,
       height: contentHeight + (18 * 2) + 2
+    }
+  }
+
+  ; 根据隐藏态测出的外框差值，把 AHK GUI 逻辑尺寸换算为实际屏幕尺寸。
+  ; Show 的 w/h 会按 GUI DPI 缩放，但 x/y 使用屏幕坐标；居中必须用真实外框尺寸计算。
+  getRealizedPreviewWindowSize(requestedSize) {
+    return {
+      width: Round(requestedSize.width * this.previewDpiScale) + this.previewFrameSize.width,
+      height: Round(requestedSize.height * this.previewDpiScale) + this.previewFrameSize.height
+    }
+  }
+
+  ; 记录非客户区、边框和 DPI 缩放之外的固定外框差值，后续显示时可直接一次算准位置。
+  getPreviewFrameSize(requestedSize, actualSize) {
+    if (actualSize.width <= 0 || actualSize.height <= 0) {
+      return { width: 0, height: 0 }
+    }
+
+    return {
+      width: actualSize.width - Round(requestedSize.width * this.previewDpiScale),
+      height: actualSize.height - Round(requestedSize.height * this.previewDpiScale)
     }
   }
 

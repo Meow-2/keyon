@@ -66,23 +66,69 @@ class windowHelper {
   }
 
   ; 以当前活动窗口所在屏幕为锚点，返回工作区居中位置。
-  ; 取不到活动窗口时退回鼠标所在屏幕，保证弹窗仍能出现在合理位置。
+  ; 优先用窗口句柄直接取显示器，避免高 DPI 或多屏缩放下用窗口坐标反推显示器产生偏差。
   static getCenteredPosition(windowWidth, windowHeight, anchorHwnd := 0) {
     anchorHwnd := anchorHwnd ? anchorHwnd : WinExist("A")
-    try {
-      WinGetPos(&anchorX, &anchorY, &anchorWidth, &anchorHeight, this.toWinId(anchorHwnd))
-      centerX := anchorX + anchorWidth / 2
-      centerY := anchorY + anchorHeight / 2
-    } catch Error {
+    workArea := anchorHwnd ? this.getWindowWorkArea(anchorHwnd) : ""
+
+    if !IsObject(workArea) {
       MouseGetPos(&centerX, &centerY)
+      workArea := this.getPointWorkArea(centerX, centerY)
     }
 
-    monitorIndex := this.getMonitorIndexAt(centerX, centerY)
+    return {
+      x: Round(workArea.left + ((workArea.right - workArea.left - windowWidth) / 2)),
+      y: Round(workArea.top + ((workArea.bottom - workArea.top - windowHeight) / 2))
+    }
+  }
+
+  ; 获取窗口所在显示器的工作区。
+  ; MonitorFromWindow 不依赖调用方用 GetWindowRect 读取出的坐标，更适合跨 DPI 缩放场景。
+  static getWindowWorkArea(hwnd) {
+    try {
+      monitorHandle := DllCall("user32\MonitorFromWindow", "ptr", hwnd, "uint", 2, "ptr")
+    } catch Error {
+      return ""
+    }
+
+    return this.getMonitorWorkArea(monitorHandle)
+  }
+
+  ; 获取指定坐标所在显示器的工作区；主要用于没有可用锚点窗口时的兜底。
+  static getPointWorkArea(x, y) {
+    monitorIndex := this.getMonitorIndexAt(x, y)
     MonitorGetWorkArea(monitorIndex, &left, &top, &right, &bottom)
 
     return {
-      x: Round(left + ((right - left - windowWidth) / 2)),
-      y: Round(top + ((bottom - top - windowHeight) / 2))
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom
+    }
+  }
+
+  ; 读取 Win32 HMONITOR 对应的工作区矩形。
+  static getMonitorWorkArea(monitorHandle) {
+    if !monitorHandle {
+      return ""
+    }
+
+    monitorInfo := Buffer(40, 0)
+    NumPut("uint", monitorInfo.Size, monitorInfo, 0)
+
+    try {
+      if !DllCall("user32\GetMonitorInfoW", "ptr", monitorHandle, "ptr", monitorInfo, "int") {
+        return ""
+      }
+    } catch Error {
+      return ""
+    }
+
+    return {
+      left: NumGet(monitorInfo, 20, "int"),
+      top: NumGet(monitorInfo, 24, "int"),
+      right: NumGet(monitorInfo, 28, "int"),
+      bottom: NumGet(monitorInfo, 32, "int")
     }
   }
 

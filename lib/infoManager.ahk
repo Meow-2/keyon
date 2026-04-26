@@ -67,16 +67,21 @@ class infoManager {
     infoGui.OnEvent("Close", closeInfoWindow)
     displayEdit.OnEvent("Focus", (*) => DllCall("HideCaret", "ptr", displayEdit.Hwnd))
 
-    estimatedPosition := windowHelper.getCenteredPosition(windowSize.windowWidth, windowSize.windowHeight, anchorHwnd)
-    infoGui.Show("w" windowSize.windowWidth " h" windowSize.windowHeight " x" estimatedPosition.x " y" estimatedPosition.y)
+    infoGui.Show("Hide w" windowSize.windowWidth " h" windowSize.windowHeight)
     windowHelper.applyMicaWindowStyle(infoGui.Hwnd)
     windowHelper.applyTitledWindowChromeStyle(infoGui.Hwnd)
 
     actualSize := this.getWindowSize(infoGui.Hwnd)
-    if (actualSize.width != windowSize.windowWidth || actualSize.height != windowSize.windowHeight) {
-      actualPosition := windowHelper.getCenteredPosition(actualSize.width, actualSize.height, anchorHwnd)
-      infoGui.Show("x" actualPosition.x " y" actualPosition.y)
+    if (actualSize.width <= 0 || actualSize.height <= 0) {
+      actualSize := {
+        width: windowSize.windowWidth,
+        height: windowSize.windowHeight
+      }
     }
+
+    position := windowHelper.getCenteredPosition(actualSize.width, actualSize.height, anchorHwnd)
+    infoGui.Show("x" position.x " y" position.y)
+
     ; 避免窗口打开时默认全选文本；用户需要时仍可手动选择复制。
     SendMessage(0xB1, 0, 0, displayEdit.Hwnd)
     ; 上方只读 Edit 获得焦点后仍会显示闪烁光标；隐藏它更接近普通系统信息弹窗。
@@ -131,7 +136,7 @@ class infoManager {
   }
 
   ; 读取窗口尺寸。
-  ; Mica、边框和实际控件占位可能让真实显示尺寸与估算值有偏差，因此需要二次定位时读回真实矩形。
+  ; GUI 隐藏态完成尺寸实现后读取真实外框，用于首帧直接按实际尺寸居中。
   getWindowSize(hwnd) {
     rect := Buffer(16, 0)
     if !DllCall("GetWindowRect", "ptr", hwnd, "ptr", rect) {
