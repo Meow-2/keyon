@@ -29,26 +29,32 @@ class infoManager {
   ; 快捷键触发入口。
   ; 先采集完整信息用于展示；自动复制时复制 apps.ini 最常用的三行推荐配置。
   showCurrentInfo(*) {
+    anchorHwnd := WinExist("A")
     currentInfo := this.buildCurrentInfo()
 
     if this.copyToClipboard {
       A_Clipboard := currentInfo.clipboardText
     }
 
-    this.showInfoWindow(currentInfo.displayText)
+    this.showInfoWindow(currentInfo.displayText, anchorHwnd)
   }
 
   ; 显示可选中复制的信息窗口。
   ; 上方只读区域展示诊断信息；下方输入框默认聚焦，用于实时观察输入法状态变化。
-  showInfoWindow(staticInfoText) {
+  showInfoWindow(staticInfoText, anchorHwnd := 0) {
     initialText := this.buildDisplayText(staticInfoText, 0)
     windowSize := this.measureInfoWindow(initialText)
-    infoGui := Gui("-Resize", "mine-key 当前信息")
-    infoGui.MarginX := 12
-    infoGui.MarginY := 12
-    infoGui.SetFont("s9", "Microsoft YaHei UI")
-    displayEdit := infoGui.Add("Edit", "ReadOnly Multi WantTab -Wrap -VScroll -HScroll x12 y12 w" windowSize.editWidth " h" windowSize.displayHeight, initialText)
-    inputEdit := infoGui.Add("Edit", "x12 y" windowSize.inputY " w" windowSize.editWidth " h" windowSize.inputHeight, "")
+    infoGui := Gui("+AlwaysOnTop", "窗口信息")
+    infoGui.BackColor := "202020"
+    infoGui.MarginX := 24
+    infoGui.MarginY := 18
+    infoGui.SetFont("cF5F5F5 s" windowSize.fontSize, "Microsoft YaHei UI")
+    infoGui.Add("Text", "xm ym w" windowSize.contentWidth " cEAEAEA", "窗口与输入法信息")
+    displayContainer := infoGui.Add("Progress", "xm y+8 w" windowSize.contentWidth " h" windowSize.displayContainerHeight " Disabled -Smooth Background2A2A2A c2A2A2A", 100)
+    displayEdit := infoGui.Add("Edit", "ReadOnly Multi WantTab -Wrap -VScroll -HScroll -E0x200 Background2A2A2A cF5F5F5 xp+12 yp+12 w" windowSize.displayEditWidth " h" windowSize.displayEditHeight, initialText)
+    infoGui.Add("Text", "xm y+12 w" windowSize.contentWidth " cD4D4D4", "实时输入")
+    inputContainer := infoGui.Add("Progress", "xm y+8 w" windowSize.contentWidth " h" windowSize.inputContainerHeight " Disabled -Smooth Background2A2A2A c2A2A2A", 100)
+    inputEdit := infoGui.Add("Edit", "-E0x200 Background2A2A2A cF5F5F5 xp+12 yp+" windowSize.inputEditTopPadding " w" windowSize.inputEditWidth " h" windowSize.inputEditHeight, "")
 
     updateInfo := (*) => this.refreshDisplayText(displayEdit, staticInfoText, inputEdit.Hwnd)
 
@@ -61,7 +67,16 @@ class infoManager {
     infoGui.OnEvent("Close", closeInfoWindow)
     displayEdit.OnEvent("Focus", (*) => DllCall("HideCaret", "ptr", displayEdit.Hwnd))
 
-    infoGui.Show("w" windowSize.windowWidth " h" windowSize.windowHeight)
+    estimatedPosition := windowHelper.getCenteredPosition(windowSize.windowWidth, windowSize.windowHeight, anchorHwnd)
+    infoGui.Show("w" windowSize.windowWidth " h" windowSize.windowHeight " x" estimatedPosition.x " y" estimatedPosition.y)
+    windowHelper.applyMicaWindowStyle(infoGui.Hwnd)
+    windowHelper.applyTitledWindowChromeStyle(infoGui.Hwnd)
+
+    actualSize := this.getWindowSize(infoGui.Hwnd)
+    if (actualSize.width != windowSize.windowWidth || actualSize.height != windowSize.windowHeight) {
+      actualPosition := windowHelper.getCenteredPosition(actualSize.width, actualSize.height, anchorHwnd)
+      infoGui.Show("x" actualPosition.x " y" actualPosition.y)
+    }
     ; 避免窗口打开时默认全选文本；用户需要时仍可手动选择复制。
     SendMessage(0xB1, 0, 0, displayEdit.Hwnd)
     ; 上方只读 Edit 获得焦点后仍会显示闪烁光标；隐藏它更接近普通系统信息弹窗。
@@ -77,8 +92,9 @@ class infoManager {
     MonitorGetWorkArea(, &left, &top, &right, &bottom)
     workWidth := right - left
     workHeight := bottom - top
-    editWidth := Min(720, Max(520, workWidth - 120))
-    maxCharsPerLine := Max(40, Floor(editWidth / 7))
+    fontSize := 11
+    contentWidth := Min(720, Max(520, workWidth - 144))
+    maxCharsPerLine := Max(40, Floor(contentWidth / 7))
     visualLineCount := 0
 
     for line in StrSplit(infoText, "`n", "`r") {
@@ -86,18 +102,48 @@ class infoManager {
       visualLineCount += Max(1, Ceil(lineLength / maxCharsPerLine))
     }
 
-    inputHeight := 28
+    sectionTitleHeight := fontSize + 8
+    displayInset := 12
+    inputContainerHeight := 36
+    inputEditHeight := 22
+    inputEditHorizontalPadding := 12
+    inputEditTopPadding := Floor((inputContainerHeight - inputEditHeight) / 2)
     controlGap := 8
-    displayHeight := visualLineCount * 19 + 14
-    displayHeight := Min(Max(displayHeight, 220), workHeight - inputHeight - controlGap - 80)
+    sectionGap := 12
+    displayHeight := visualLineCount * 23 + 18
+    displayHeight := Min(Max(displayHeight, 220), workHeight - inputContainerHeight - sectionTitleHeight - (sectionGap * 3) - 110)
+    displayContainerHeight := displayHeight + (displayInset * 2)
+    borderSize := 2
 
     return {
-      editWidth: editWidth,
-      displayHeight: displayHeight,
-      inputHeight: inputHeight,
-      inputY: displayHeight + controlGap + 12,
-      windowWidth: editWidth + 24,
-      windowHeight: displayHeight + inputHeight + controlGap + 24
+      fontSize: fontSize,
+      contentWidth: contentWidth,
+      displayContainerHeight: displayContainerHeight,
+      displayEditWidth: contentWidth - (displayInset * 2),
+      displayEditHeight: displayHeight,
+      inputContainerHeight: inputContainerHeight,
+      inputEditHeight: inputEditHeight,
+      inputEditTopPadding: inputEditTopPadding,
+      inputEditWidth: contentWidth - (inputEditHorizontalPadding * 2),
+      windowWidth: contentWidth + (24 * 2) + borderSize,
+      windowHeight: sectionTitleHeight + sectionGap + displayContainerHeight + sectionGap + sectionTitleHeight + controlGap + inputContainerHeight + (18 * 2) + borderSize
+    }
+  }
+
+  ; 读取窗口尺寸。
+  ; Mica、边框和实际控件占位可能让真实显示尺寸与估算值有偏差，因此需要二次定位时读回真实矩形。
+  getWindowSize(hwnd) {
+    rect := Buffer(16, 0)
+    if !DllCall("GetWindowRect", "ptr", hwnd, "ptr", rect) {
+      return {
+        width: 0,
+        height: 0
+      }
+    }
+
+    return {
+      width: NumGet(rect, 8, "int") - NumGet(rect, 0, "int"),
+      height: NumGet(rect, 12, "int") - NumGet(rect, 4, "int")
     }
   }
 
