@@ -48,7 +48,7 @@ class keyMapManager {
     keyMapRules := []
 
     for sectionName in this.config.readSectionNames() {
-      if (sectionName = "" || !this.startsWith(sectionName, "keyMap.")) {
+      if (sectionName = "" || SubStr(sectionName, 1, 7) != "keyMap.") {
         continue
       }
 
@@ -66,10 +66,5 @@ class keyMapManager {
     }
 
     return keyMapRules
-  }
-
-  ; 判断字符串是否以指定前缀开头。
-  startsWith(value, prefix) {
-    return SubStr(value, 1, StrLen(prefix)) = prefix
   }
 }

@@ -35,10 +35,20 @@ class windowControlManager {
     }
 
     registeredCount := 0
-    registeredCount += this.registerHotkey(this.closeHotkey, ObjBindMethod(this, "closeActiveWindow"), "关闭窗口")
-    registeredCount += this.registerHotkey(this.nextHotkey, ObjBindMethod(this, "activateAdjacentWindow", 1), "切换到下一个窗口")
-    registeredCount += this.registerHotkey(this.previousHotkey, ObjBindMethod(this, "activateAdjacentWindow", -1), "切换到上一个窗口")
+    for hotkeyItem in this.getPrimaryHotkeyItems() {
+      registeredCount += this.registerHotkey(hotkeyItem.hotkey, hotkeyItem.callback, hotkeyItem.actionName)
+    }
+
     return registeredCount
+  }
+
+  ; 返回窗口管理主热键定义，便于统一注册。
+  getPrimaryHotkeyItems() {
+    return [
+      { hotkey: this.closeHotkey, callback: ObjBindMethod(this, "closeActiveWindow"), actionName: "关闭窗口" },
+      { hotkey: this.nextHotkey, callback: ObjBindMethod(this, "activateAdjacentWindow", 1), actionName: "切换到下一个窗口" },
+      { hotkey: this.previousHotkey, callback: ObjBindMethod(this, "activateAdjacentWindow", -1), actionName: "切换到上一个窗口" }
+    ]
   }
 
   ; 注册单个热键，失败时只提示当前热键，不中断脚本。
@@ -84,7 +94,14 @@ class windowControlManager {
       return false
     }
 
-    activeHwnd := WinExist("A")
+    targetIndex := this.getAdjacentWindowIndex(hwnds, WinExist("A"), direction)
+    this.showWindowPreview(hwnds, targetIndex, this.shouldHidePreviewOnWinRelease(A_ThisHotkey))
+    return this.focusWindow(hwnds[targetIndex])
+  }
+
+  ; 计算当前活动窗口在循环列表中的相邻目标位置。
+  ; 当前没有活动窗口命中列表时回退到第一项。
+  getAdjacentWindowIndex(hwnds, activeHwnd, direction) {
     activeIndex := 0
     for index, hwnd in hwnds {
       if (hwnd = activeHwnd) {
@@ -93,18 +110,20 @@ class windowControlManager {
       }
     }
 
-    targetIndex := 1
-    if (activeIndex > 0) {
-      targetIndex := activeIndex + direction
-      if (targetIndex < 1) {
-        targetIndex := hwnds.Length
-      } else if (targetIndex > hwnds.Length) {
-        targetIndex := 1
-      }
+    if (activeIndex = 0) {
+      return 1
     }
 
-    this.showWindowPreview(hwnds, targetIndex, this.shouldHidePreviewOnWinRelease(A_ThisHotkey))
-    return this.focusWindow(hwnds[targetIndex])
+    targetIndex := activeIndex + direction
+    if (targetIndex < 1) {
+      return hwnds.Length
+    }
+
+    if (targetIndex > hwnds.Length) {
+      return 1
+    }
+
+    return targetIndex
   }
 
   ; 使用系统 Alt+Tab 行为切换窗口。
@@ -139,10 +158,7 @@ class windowControlManager {
     this.releaseWinForSystemSwitch()
 
     if !this.systemSwitchActive {
-      Send("{Alt down}")
-      this.systemSwitchActive := true
-      this.setSystemCycleHotkeys("On")
-      SetTimer(this.finishSystemSwitchCallback, 20)
+      this.setSystemSwitchSession(true)
     }
 
     this.sendSystemTab(direction)
@@ -188,13 +204,29 @@ class windowControlManager {
       return
     }
 
+    this.setSystemSwitchSession(false)
+  }
+
+  ; 统一启停 system 模式的 Alt+Tab 会话状态。
+  ; 开启时按下 Alt 并接管裸 J/K；关闭时释放 Alt 并取消接管。
+  setSystemSwitchSession(isActive) {
     SetTimer(this.finishSystemSwitchCallback, 0)
 
-    if this.systemSwitchActive {
-      Send("{Alt up}")
-      this.systemSwitchActive := false
-      this.setSystemCycleHotkeys("Off")
+    if isActive {
+      Send("{Alt down}")
+      this.systemSwitchActive := true
+      this.setSystemCycleHotkeys("On")
+      SetTimer(this.finishSystemSwitchCallback, 20)
+      return
     }
+
+    if !this.systemSwitchActive {
+      return
+    }
+
+    Send("{Alt up}")
+    this.systemSwitchActive := false
+    this.setSystemCycleHotkeys("Off")
   }
 
   ; 批量启停 system 切换会话内的裸按键接管。
@@ -321,7 +353,6 @@ class windowControlManager {
     try if IsObject(this.previewGui) {
       this.previewGui.Hide()
     }
-
   }
 
   ; Win 组合键触发的 managed 预览在松开 Win 时应立即消失。
@@ -388,14 +419,9 @@ class windowControlManager {
     previewList := this.previewList
     previewList.Delete()
 
-    maxItems := Min(this.previewMaxItems, hwnds.Length)
-    startIndex := Max(1, targetIndex - Floor(maxItems / 2))
-    endIndex := startIndex + maxItems - 1
-
-    if (endIndex > hwnds.Length) {
-      endIndex := hwnds.Length
-      startIndex := Max(1, endIndex - maxItems + 1)
-    }
+    previewRange := this.getPreviewRange(hwnds.Length, targetIndex)
+    startIndex := previewRange.startIndex
+    endIndex := previewRange.endIndex
 
     selectedRow := 0
     if (startIndex > 1) {
@@ -416,6 +442,24 @@ class windowControlManager {
 
     if (selectedRow > 0) {
       previewList.Modify(selectedRow, "Select Focus Vis")
+    }
+  }
+
+  ; 计算预览面板中实际显示的窗口范围。
+  ; 尽量让目标窗口处于中间位置，必要时向头尾收缩。
+  getPreviewRange(totalCount, targetIndex) {
+    maxItems := Min(this.previewMaxItems, totalCount)
+    startIndex := Max(1, targetIndex - Floor(maxItems / 2))
+    endIndex := startIndex + maxItems - 1
+
+    if (endIndex > totalCount) {
+      endIndex := totalCount
+      startIndex := Max(1, endIndex - maxItems + 1)
+    }
+
+    return {
+      startIndex: startIndex,
+      endIndex: endIndex
     }
   }
 
