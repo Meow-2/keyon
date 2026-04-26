@@ -2,7 +2,7 @@
 
 `mine-key` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现两类能力：应用窗口管理，以及输入法状态切换。
 
-当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/tools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `mineKey.ahk`。
+当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/wintools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `mineKey.ahk`。
 
 ## 环境要求
 
@@ -191,7 +191,7 @@ switchMethod=dll
 
 ## 工具类快捷键配置
 
-工具类快捷键配置位于 `config/tools.ini`。当前支持“查看当前窗口信息和输入法状态”以及通用窗口管理。
+工具类快捷键配置位于 `config/wintools.ini`。当前支持“查看当前窗口信息和输入法状态”以及通用窗口管理。
 
 启用示例：
 
@@ -326,7 +326,7 @@ sendKeys=#1
 - 托盘应用、虚拟桌面窗口和特殊 UWP 窗口可能需要额外的 `processName`、`wakeHotkey` 或匹配规则。
 - 输入法功能当前支持按键触发的状态切换；按活动窗口自动切换输入法状态尚未实现。
 - 不同输入法对状态码和切换码的支持存在差异。如果 `dll` 不稳定，可尝试 `lShift`、`rShift` 或 `ctrlSpace`。
-- 工具类快捷键默认未启用，需要在 `config/tools.ini` 中手动取消注释或新增配置。
+- 工具类快捷键默认未启用，需要在 `config/wintools.ini` 中手动取消注释或新增配置。
 
 ## 参考项目
 

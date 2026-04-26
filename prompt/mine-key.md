@@ -84,7 +84,7 @@
 - 下方测试输入框的输入法状态：`CN` 或 `EN`。
 - 下方测试输入框的输入焦点句柄、输入法打开状态码、转换码和键盘布局；切换输入法时应实时刷新。
 
-信息查看快捷键通过 `config/tools.ini` 配置，当前实际启用状态以该文件内容为准。
+信息查看快捷键通过 `config/wintools.ini` 配置，当前实际启用状态以该文件内容为准。
 
 信息窗口上方应使用可选中文本的只读控件展示，允许用户手动选择并复制局部内容；下方应提供默认聚焦的输入框，用于实时测试输入法状态。
 
@@ -114,7 +114,7 @@
 │   ├── apps.ini             # 应用快捷键配置
 │   ├── ime.ini              # 输入法状态切换配置
 │   ├── keymap.ini           # 自定义按键映射配置
-│   └── tools.ini            # 工具类快捷键配置
+│   └── wintools.ini         # 工具类快捷键配置
 ├── lib/
 │   ├── configReader.ahk     # INI 配置读取工具
 │   ├── windowHelper.ahk     # 跨模块复用的窗口基础工具
@@ -192,7 +192,7 @@ PowerShell 中运行：
 - `registry/exchangeEscCapsLock.reg`：通过 `Keyboard Layout` 的 `Scancode Map` 交换 `Esc` 和 `CapsLock`，写入 `HKLM`，需要管理员权限，通常需要注销或重启后生效。
 - `registry/xiaoHe.reg`：配置当前用户的微软拼音小鹤双拼，写入 `HKCU\Software\Microsoft\InputMethod\Settings\CHS`。
 
-这些文件只负责系统或输入法基础设置；快捷键行为仍以 `config/apps.ini`、`config/ime.ini`、`config/tools.ini` 和 `config/keymap.ini` 为准。
+这些文件只负责系统或输入法基础设置；快捷键行为仍以 `config/apps.ini`、`config/ime.ini`、`config/wintools.ini` 和 `config/keymap.ini` 为准。
 
 ## 配置文件
 
@@ -260,7 +260,7 @@ sendAfterSwitch=
 
 AHK 自定义组合键使用 `前缀键 & 触发键` 格式，例如 `hotkey=Esc & a`。输入法热键注册逻辑应保留该格式，不自动添加 `$` 前缀。
 
-工具类快捷键配置位于 `config/tools.ini`。当前支持窗口与输入法信息查看和通用窗口管理：
+工具类快捷键配置位于 `config/wintools.ini`。当前支持窗口与输入法信息查看和通用窗口管理：
 
 ```ini
 [windowInfo]
@@ -275,7 +275,7 @@ copyToClipboard=true
 - `hotkey`：触发信息查看的 AHK 热键。
 - `copyToClipboard`：是否在弹窗显示时把 `winTitle`、`target`、`processName` 三行推荐配置复制到剪贴板。
 
-通用窗口管理配置同样位于 `config/tools.ini`：
+通用窗口管理配置同样位于 `config/wintools.ini`：
 
 ```ini
 [windowControl]

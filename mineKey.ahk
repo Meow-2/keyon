@@ -18,11 +18,11 @@ configPath := A_ScriptDir "\config\apps.ini"
 manager := appWindowManager(configPath)
 imeConfigPath := A_ScriptDir "\config\ime.ini"
 inputMethodManager := imeManager(imeConfigPath)
-toolsConfigPath := A_ScriptDir "\config\tools.ini"
-currentInfoManager := infoManager(toolsConfigPath, inputMethodManager)
+winToolsConfigPath := A_ScriptDir "\config\wintools.ini"
+currentInfoManager := infoManager(winToolsConfigPath, inputMethodManager)
 keyMapConfigPath := A_ScriptDir "\config\keymap.ini"
 currentKeyMapManager := keyMapManager(keyMapConfigPath)
-currentWindowControlManager := windowControlManager(toolsConfigPath)
+currentWindowControlManager := windowControlManager(winToolsConfigPath)
 
 if (A_Args.Length && A_Args[1] = "--check") {
   ExitApp(0)
