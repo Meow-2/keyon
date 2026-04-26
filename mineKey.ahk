@@ -6,6 +6,7 @@
 #Include lib\appWindowManager.ahk
 #Include lib\imeManager.ahk
 #Include lib\infoManager.ahk
+#Include lib\keyMapManager.ahk
 #Include lib\windowControlManager.ahk
 
 SetWorkingDir(A_ScriptDir)
@@ -19,6 +20,8 @@ imeConfigPath := A_ScriptDir "\config\ime.ini"
 inputMethodManager := imeManager(imeConfigPath)
 toolsConfigPath := A_ScriptDir "\config\tools.ini"
 currentInfoManager := infoManager(toolsConfigPath, inputMethodManager)
+keyMapConfigPath := A_ScriptDir "\config\keymap.ini"
+currentKeyMapManager := keyMapManager(keyMapConfigPath)
 currentWindowControlManager := windowControlManager(toolsConfigPath)
 
 if (A_Args.Length && A_Args[1] = "--check") {
@@ -28,9 +31,10 @@ if (A_Args.Length && A_Args[1] = "--check") {
 registeredCount := manager.registerHotkeys()
 registeredImeCount := inputMethodManager.registerHotkeys()
 registeredInfoCount := currentInfoManager.registerHotkeys()
+registeredKeyMapCount := currentKeyMapManager.registerHotkeys()
 registeredWindowControlCount := currentWindowControlManager.registerHotkeys()
 
-if (registeredCount = 0 && registeredImeCount = 0 && registeredInfoCount = 0 && registeredWindowControlCount = 0) {
+if (registeredCount = 0 && registeredImeCount = 0 && registeredInfoCount = 0 && registeredKeyMapCount = 0 && registeredWindowControlCount = 0) {
   ; 没有配置有效快捷键时仍保持脚本运行，方便用户编辑配置后手动重载。
   OutputDebug("mine-key: 没有启用任何快捷键。")
 }

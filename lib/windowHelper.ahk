@@ -6,6 +6,16 @@ class windowHelper {
     return "ahk_id " hwnd
   }
 
+  ; 给热键名补上 $ 前缀，强制使用键盘 hook 注册。
+  ; 已经显式带 $ 的写法保持不变；A & B 这类自定义组合键本身依赖 hook，不能再额外补 $。
+  static buildHookHotkeyName(hotkeyName) {
+    if (hotkeyName = "" || SubStr(hotkeyName, 1, 1) = "$" || InStr(hotkeyName, " & ")) {
+      return hotkeyName
+    }
+
+    return "$" hotkeyName
+  }
+
   ; 判断数组中是否已有指定值。
   static arrayHas(values, expectedValue) {
     for value in values {

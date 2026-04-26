@@ -2,7 +2,7 @@
 
 `mine-key` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现两类能力：应用窗口管理，以及输入法状态切换。
 
-当前启用的快捷键以 `config/apps.ini`、`config/ime.ini` 和 `config/tools.ini` 为准。修改配置后重新运行或重载 `mineKey.ahk`。
+当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/tools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `mineKey.ahk`。
 
 ## 环境要求
 
@@ -245,12 +245,30 @@ previewWidth=760
 - `previousHotkey`：切换到上一个可管理窗口，默认配置为 `#k`，即 `Win + K`。
 - `switchMode`：窗口切换方式，支持 `managed` 和 `system`。`managed` 使用项目自己的窗口列表和居中预览；`system` 使用 Windows 原生 `Alt+Tab` / `Alt+Shift+Tab`。
 - `waitSeconds`：切换后等待目标窗口激活的秒数，省略时默认 `1`。
-- `previewSeconds`：窗口候选列表提示显示的秒数，省略时默认 `0.6`，设为 `0` 可关闭提示。
+- `previewSeconds`：窗口候选列表提示显示的秒数，省略时默认 `0.6`。仅非 Win 组合键触发的 `managed` 切换使用该超时；设为 `0` 可关闭提示。
 - `previewMaxItems`：候选列表最多显示的窗口数量，省略时默认 `8`。
 - `previewFontSize`：候选列表字体大小，省略时默认 `16`。
 - `previewWidth`：候选列表窗口宽度，省略时默认 `760`。
 
-`switchMode=managed` 时，窗口切换会跳过桌面、任务栏、空标题窗口、隐藏窗口、工具窗口和 `crashpad` 后台辅助窗口，并在当前屏幕中央短暂显示候选窗口列表。`switchMode=system` 时，窗口顺序和候选界面完全交给 Windows 系统处理，预览相关配置不生效；如果 `nextHotkey` / `previousHotkey` 使用 Win 组合键，例如 `#j` / `#k`，可以按住 Win 不放，连续按 `J` / `K` 在系统切换候选中循环，松开 Win 后确认目标窗口。
+`switchMode=managed` 时，窗口切换会跳过桌面、任务栏、空标题窗口、隐藏窗口、工具窗口和 `crashpad` 后台辅助窗口，并在当前屏幕中央显示候选窗口列表。如果 `nextHotkey` / `previousHotkey` 使用 Win 组合键，例如 `#j` / `#k`，则按住 Win 期间预览会持续显示，松开 Win 后立即消失，中间可以继续按 `J` / `K` 循环切换。`switchMode=system` 时，窗口顺序和候选界面完全交给 Windows 系统处理，预览相关配置不生效；如果 `nextHotkey` / `previousHotkey` 使用 Win 组合键，例如 `#j` / `#k`，可以按住 Win 不放，连续按 `J` / `K` 在系统切换候选中循环，松开 Win 后确认目标窗口。
+
+## 按键映射配置
+
+按键映射配置位于 `config/keymap.ini`。
+
+示例：
+
+```ini
+[keyMap.esc1]
+enabled=true
+hotkey=Esc & 1
+sendKeys=#1
+```
+
+字段含义：
+
+- `hotkey`：触发映射的 AHK 热键，支持 `Esc & 1` 这类前缀键组合。
+- `sendKeys`：触发后发送的目标按键串，使用 AHK `Send` 语法，例如 `#1`、`#0`、`#Enter`。
 
 ## 语法检查
 

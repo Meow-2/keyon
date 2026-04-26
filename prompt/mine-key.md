@@ -113,6 +113,7 @@
 ├── config/
 │   ├── apps.ini             # 应用快捷键配置
 │   ├── ime.ini              # 输入法状态切换配置
+│   ├── keymap.ini           # 自定义按键映射配置
 │   └── tools.ini            # 工具类快捷键配置
 ├── lib/
 │   ├── configReader.ahk     # INI 配置读取工具
@@ -120,6 +121,7 @@
 │   ├── appWindowManager.ahk # 应用启动、呼出、窗口切换和焦点管理
 │   ├── imeManager.ahk       # 输入法状态检测与切换
 │   ├── infoManager.ahk      # 当前窗口与输入法信息查看
+│   ├── keyMapManager.ahk    # 自定义按键映射
 │   └── windowControlManager.ahk # 通用窗口关闭和前后切换
 ├── scripts/
 │   ├── compile.ps1          # 编译 mineKey.ahk 为 mine-key.exe
@@ -190,7 +192,7 @@ PowerShell 中运行：
 - `registry/exchangeEscCapsLock.reg`：通过 `Keyboard Layout` 的 `Scancode Map` 交换 `Esc` 和 `CapsLock`，写入 `HKLM`，需要管理员权限，通常需要注销或重启后生效。
 - `registry/xiaoHe.reg`：配置当前用户的微软拼音小鹤双拼，写入 `HKCU\Software\Microsoft\InputMethod\Settings\CHS`。
 
-这些文件只负责系统或输入法基础设置；快捷键行为仍以 `config/ime.ini`、`config/apps.ini` 和 `config/tools.ini` 为准。
+这些文件只负责系统或输入法基础设置；快捷键行为仍以 `config/apps.ini`、`config/ime.ini`、`config/tools.ini` 和 `config/keymap.ini` 为准。
 
 ## 配置文件
 
@@ -258,7 +260,7 @@ sendAfterSwitch=
 
 AHK 自定义组合键使用 `前缀键 & 触发键` 格式，例如 `hotkey=Esc & a`。输入法热键注册逻辑应保留该格式，不自动添加 `$` 前缀。
 
-工具类快捷键配置位于 `config/tools.ini`。当前支持窗口与输入法信息查看：
+工具类快捷键配置位于 `config/tools.ini`。当前支持窗口与输入法信息查看和通用窗口管理：
 
 ```ini
 [windowInfo]
@@ -296,10 +298,26 @@ previewWidth=760
 - `previousHotkey`：切换到上一个可管理窗口。
 - `switchMode`：窗口切换方式，支持 `managed` 和 `system`。
 - `waitSeconds`：等待目标窗口激活的秒数。
-- `previewSeconds`：窗口候选列表提示显示的秒数，省略时默认 `0.6`，设为 `0` 可关闭提示。
+- `previewSeconds`：窗口候选列表提示显示的秒数，省略时默认 `0.6`。仅非 Win 组合键触发的 `managed` 切换使用该超时；设为 `0` 可关闭提示。
 - `previewMaxItems`：候选列表最多显示的窗口数量。
 - `previewFontSize`：候选列表字体大小。
 - `previewWidth`：候选列表窗口宽度。
+
+`switchMode=managed` 且 `nextHotkey` / `previousHotkey` 使用 Win 组合键时，预览窗口会在按住 Win 期间持续显示，松开 Win 后立即消失，中间可以继续按对应按键循环切换目标窗口。
+
+按键映射位于 `config/keymap.ini`：
+
+```ini
+[keyMap.esc1]
+enabled=true
+hotkey=Esc & 1
+sendKeys=#1
+```
+
+字段说明：
+
+- `hotkey`：触发映射的 AHK 热键。
+- `sendKeys`：触发后发送的目标按键串，使用 AHK `Send` 语法。
 
 ## 验收标准
 
