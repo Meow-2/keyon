@@ -581,7 +581,7 @@ class windowControlManager {
   }
 
   ; 生成窗口预览列表中的单行描述。
-  ; 标题过长时截断，并追加进程名帮助区分同名窗口。
+  ; 进程名放在前面帮助先识别应用，标题过长时截断。
   getWindowLabel(hwnd) {
     winId := windowHelper.toWinId(hwnd)
 
@@ -598,7 +598,7 @@ class windowControlManager {
       title := SubStr(title, 1, 53) "..."
     }
 
-    return title " [" processName "]"
+    return "[" processName "] " title
   }
 
   ; 判断窗口是否适合参与全局窗口切换。
