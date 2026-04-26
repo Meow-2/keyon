@@ -53,7 +53,10 @@ class imeManager {
   ; 输入法快捷键触发入口。
   ; currentRule 会被继续传入，用于判断 passThrough、切换方式和切换后的补发按键。
   handleStateHotkey(currentRule, *) {
-    this.switchToState(currentRule.targetState, currentRule)
+    if this.canManageInputState() {
+      this.switchToState(currentRule.targetState, currentRule)
+    }
+
     this.sendAfterSwitch(currentRule)
   }
 
@@ -114,6 +117,26 @@ class imeManager {
 
     conversionMode := this.getConversionMode(hwnd)
     return (conversionMode & 1) ? "CN" : "EN"
+  }
+
+  ; 判断当前焦点窗口的输入法状态是否可读、可控。
+  ; 不可控时直接跳过切换逻辑，避免在游戏或特殊窗口里先执行一段注定失败的状态切换。
+  canManageInputState(hwnd := 0) {
+    hwnd := hwnd ? hwnd : this.getFocusedWindow()
+    if !hwnd {
+      return false
+    }
+
+    openStatusResult := this.tryImeControl(hwnd, 0x5)
+    if !openStatusResult.ok {
+      return false
+    }
+
+    if !openStatusResult.value {
+      return true
+    }
+
+    return this.tryImeControl(hwnd, 0x1).ok
   }
 
   ; 通过 Windows IMM 接口直接设置输入法状态。
@@ -181,14 +204,8 @@ class imeManager {
   ; 读取输入法打开状态。
   ; 底层使用 ImmGetDefaultIMEWnd + WM_IME_CONTROL / IMC_GETOPENSTATUS。
   getOpenStatus(hwnd) {
-    try {
-      status := 0
-      imeHwnd := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
-      DllCall("SendMessageTimeoutW", "ptr", imeHwnd, "uint", 0x283, "ptr", 0x5, "ptr", 0, "uint", 0, "uint", this.checkTimeout, "ptr*", &status)
-      return status
-    } catch Error {
-      return 0
-    }
+    result := this.tryImeControl(hwnd, 0x5)
+    return result.ok ? result.value : 0
   }
 
   ; 设置输入法打开状态。
@@ -206,14 +223,8 @@ class imeManager {
   ; 读取输入法转换码。
   ; 转换码用于区分中文、英文、全角、半角等状态，不同输入法返回值可能不同。
   getConversionMode(hwnd) {
-    try {
-      conversionMode := 0
-      imeHwnd := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
-      DllCall("SendMessageTimeoutW", "ptr", imeHwnd, "uint", 0x283, "ptr", 0x1, "ptr", 0, "uint", 0, "uint", this.checkTimeout, "ptr*", &conversionMode)
-      return conversionMode
-    } catch Error {
-      return 0
-    }
+    result := this.tryImeControl(hwnd, 0x1)
+    return result.ok ? result.value : 0
   }
 
   ; 设置输入法转换码。
@@ -246,6 +257,32 @@ class imeManager {
 
     focusedHwnd := NumGet(guiThreadInfo, A_PtrSize = 8 ? 16 : 12, "ptr")
     return focusedHwnd ? focusedHwnd : foregroundHwnd
+  }
+
+  ; 统一执行 WM_IME_CONTROL 查询。
+  ; SendMessageTimeoutW 的返回值能区分调用成功与否，比直接把 0 当状态更适合做切换前判断。
+  tryImeControl(hwnd, controlCode) {
+    try {
+      controlValue := 0
+      imeHwnd := DllCall("imm32\ImmGetDefaultIMEWnd", "ptr", hwnd, "ptr")
+      if !imeHwnd {
+        return { ok: false, value: 0 }
+      }
+
+      sendResult := DllCall(
+        "SendMessageTimeoutW",
+        "ptr", imeHwnd,
+        "uint", 0x283,
+        "ptr", controlCode,
+        "ptr", 0,
+        "uint", 0,
+        "uint", this.checkTimeout,
+        "ptr*", &controlValue
+      )
+      return { ok: sendResult != 0, value: controlValue }
+    } catch Error {
+      return { ok: false, value: 0 }
+    }
   }
 
   ; 从 config/ime.ini 读取所有 hotkey.* section。
