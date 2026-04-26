@@ -15,8 +15,9 @@ class windowControlManager {
     this.previewWidth := this.config.readNumber("windowControl", "previewWidth", 760)
     this.windowCycleHwnds := []
     this.previewGui := ""
-    this.previewList := ""
     this.previewSize := ""
+    this.previewRowBars := []
+    this.previewRowTexts := []
     this.hidePreviewCallback := ObjBindMethod(this, "hideWindowPreview")
     this.hideManagedPreviewOnWinReleaseCallback := ObjBindMethod(this, "hideManagedPreviewWhenWinReleased")
     this.systemSwitchActive := false
@@ -337,10 +338,18 @@ class windowControlManager {
     }
 
     this.ensurePreviewGui()
-    this.updatePreviewList(hwnds, targetIndex)
+    visibleRowCount := this.updatePreviewList(hwnds, targetIndex)
 
-    position := this.getCenteredPreviewPosition(this.previewSize.width, this.previewSize.height)
-    this.previewGui.Show("NoActivate x" position.x " y" position.y)
+    estimatedSize := this.buildPreviewWindowSize(visibleRowCount)
+    position := this.getCenteredPreviewPosition(estimatedSize.width, estimatedSize.height)
+    this.previewGui.Show("NoActivate w" estimatedSize.width " h" estimatedSize.height " x" position.x " y" position.y)
+
+    actualSize := this.getWindowSize(this.previewGui.Hwnd)
+    if (actualSize.width != estimatedSize.width || actualSize.height != estimatedSize.height) {
+      actualPosition := this.getCenteredPreviewPosition(actualSize.width, actualSize.height)
+      this.previewGui.Show("NoActivate x" actualPosition.x " y" actualPosition.y)
+    }
+
     this.schedulePreviewHide(hideOnWinRelease)
   }
 
@@ -390,59 +399,69 @@ class windowControlManager {
   }
 
   ; 预创建窗口切换预览 GUI。
-  ; 预览使用单个常驻列表控件，只刷新列表项和选中项，避免每次切换都重建整棵控件树。
+  ; 预览使用单个常驻 GUI 和固定数量的行控件，只刷新文本和显隐状态。
   ensurePreviewGui() {
     if IsObject(this.previewGui) {
       return
     }
 
+    rowCount := Max(3, this.previewMaxItems + 2)
+    rowHeight := this.getPreviewRowHeight()
+    textWidth := this.previewWidth - 28
+
     previewGui := Gui("+AlwaysOnTop -Caption +ToolWindow +Border")
-    previewGui.BackColor := "FFFFFF"
+    previewGui.BackColor := "202020"
     previewGui.MarginX := 24
     previewGui.MarginY := 18
-    previewGui.SetFont("s" this.previewFontSize, "Microsoft YaHei UI")
-    previewGui.Add("Text", "w" this.previewWidth, "窗口切换")
+    previewGui.SetFont("cF5F5F5 s" this.previewFontSize, "Microsoft YaHei UI")
+    previewGui.Add("Text", "xm ym w" this.previewWidth " cF5F5F5", "窗口切换")
 
-    rowCount := Max(3, this.previewMaxItems + 2)
-    previewList := previewGui.Add("ListView", "xm y+8 w" this.previewWidth " r" rowCount " -Hdr -Multi", ["窗口"])
-    previewList.ModifyCol(1, this.previewWidth - 24)
-    previewGui.Show("NoActivate Hide AutoSize")
+    this.previewRowBars := []
+    this.previewRowTexts := []
+    Loop rowCount {
+      rowOptions := A_Index = 1
+        ? "xm y+10 w" this.previewWidth " h" rowHeight " Disabled -Smooth Background202020 c202020 Hidden"
+        : "xm y+6 w" this.previewWidth " h" rowHeight " Disabled -Smooth Background202020 c202020 Hidden"
+      rowBar := previewGui.Add("Progress", rowOptions, 100)
+      rowText := previewGui.Add("Text", "xp+14 yp+4 w" textWidth " h" (rowHeight - 8) " BackgroundTrans cF5F5F5 Hidden", "")
+      this.previewRowBars.Push(rowBar)
+      this.previewRowTexts.Push(rowText)
+    }
+
+    this.previewSize := this.buildPreviewWindowSize(rowCount)
+    previewGui.Show("NoActivate Hide w" this.previewSize.width " h" this.previewSize.height)
+    this.applyPreviewWindowStyle(previewGui)
 
     this.previewGui := previewGui
-    this.previewList := previewList
-    this.previewSize := this.getWindowSize(previewGui.Hwnd)
   }
 
   ; 按当前切换目标刷新预览列表。
   ; 目标窗口尽量保持在可视区域中部，顶部和底部用省略行表示还有更多候选。
   updatePreviewList(hwnds, targetIndex) {
-    previewList := this.previewList
-    previewList.Delete()
-
     previewRange := this.getPreviewRange(hwnds.Length, targetIndex)
     startIndex := previewRange.startIndex
     endIndex := previewRange.endIndex
-
-    selectedRow := 0
+    rowTexts := []
     if (startIndex > 1) {
-      previewList.Add("", "... +" (startIndex - 1))
+      rowTexts.Push("... +" (startIndex - 1))
     }
 
     Loop (endIndex - startIndex + 1) {
       index := startIndex + A_Index - 1
-      rowIndex := previewList.Add("", index ". " this.getWindowLabel(hwnds[index]))
-      if (index = targetIndex) {
-        selectedRow := rowIndex
-      }
+      rowTexts.Push(index ". " this.getWindowLabel(hwnds[index]))
     }
 
     if (endIndex < hwnds.Length) {
-      previewList.Add("", "... +" (hwnds.Length - endIndex))
+      rowTexts.Push("... +" (hwnds.Length - endIndex))
     }
 
-    if (selectedRow > 0) {
-      previewList.Modify(selectedRow, "Select Focus Vis")
+    selectedRow := targetIndex - startIndex + 1
+    if (startIndex > 1) {
+      selectedRow += 1
     }
+
+    this.renderPreviewRows(rowTexts, selectedRow)
+    return rowTexts.Length
   }
 
   ; 计算预览面板中实际显示的窗口范围。
@@ -461,6 +480,63 @@ class windowControlManager {
       startIndex: startIndex,
       endIndex: endIndex
     }
+  }
+
+  ; 根据当前候选内容刷新固定行控件。
+  ; 选中行用天蓝色背景，其余行保持透明深色背景。
+  renderPreviewRows(rowTexts, selectedRow) {
+    static normalColor := "202020"
+    static selectedColor := "66BFFF"
+    static normalTextColor := "F5F5F5"
+    static selectedTextColor := "101418"
+
+    rowCount := this.previewRowBars.Length
+    Loop rowCount {
+      rowBar := this.previewRowBars[A_Index]
+      rowText := this.previewRowTexts[A_Index]
+
+      if (A_Index <= rowTexts.Length) {
+        rowBar.Opt(A_Index = selectedRow ? "c" selectedColor : "c" normalColor)
+        rowBar.Opt("-Hidden")
+        rowText.Value := rowTexts[A_Index]
+        rowText.SetFont("c" (A_Index = selectedRow ? selectedTextColor : normalTextColor))
+        rowText.Opt("-Hidden")
+      } else {
+        rowBar.Opt("Hidden")
+        rowText.Opt("Hidden")
+      }
+    }
+  }
+
+  ; 按当前字体大小估算单行预览高度。
+  ; 维持较宽松的留白，让 Mica 面板上的候选列表更接近系统弹窗观感。
+  getPreviewRowHeight() {
+    return Max(28, this.previewFontSize + 16)
+  }
+
+  ; 计算预览窗口尺寸。
+  ; 不再依赖首次 AutoSize，避免隐藏行控件导致窗口高度只按标题计算。
+  buildPreviewWindowSize(visibleRowCount) {
+    rowHeight := this.getPreviewRowHeight()
+    titleHeight := Max(26, this.previewFontSize + 10)
+    rowGap := 6
+    firstRowGap := 10
+    contentHeight := titleHeight
+
+    if (visibleRowCount > 0) {
+      contentHeight += firstRowGap + (visibleRowCount * rowHeight) + (Max(0, visibleRowCount - 1) * rowGap)
+    }
+
+    return {
+      width: this.previewWidth + (24 * 2) + 2,
+      height: contentHeight + (18 * 2) + 2
+    }
+  }
+
+  ; 给预览窗口应用 Windows 11 风格外观。
+  ; 优先启用 Mica 背景、沉浸式深色模式和圆角；不支持时静默回退到普通深色面板。
+  applyPreviewWindowStyle(previewGui) {
+    windowHelper.applyMicaWindowStyle(previewGui.Hwnd)
   }
 
   ; 读取窗口尺寸。
@@ -482,38 +558,7 @@ class windowControlManager {
 
   ; 计算预览窗口在当前活动窗口所在屏幕的居中位置。
   getCenteredPreviewPosition(previewWidth, previewHeight) {
-    activeHwnd := WinExist("A")
-
-    try {
-      WinGetPos(&activeX, &activeY, &activeWidth, &activeHeight, windowHelper.toWinId(activeHwnd))
-      centerX := activeX + activeWidth / 2
-      centerY := activeY + activeHeight / 2
-    } catch Error {
-      MouseGetPos(&centerX, &centerY)
-    }
-
-    monitorIndex := this.getMonitorIndexAt(centerX, centerY)
-    MonitorGetWorkArea(monitorIndex, &left, &top, &right, &bottom)
-
-    return {
-      x: Round(left + ((right - left - previewWidth) / 2)),
-      y: Round(top + ((bottom - top - previewHeight) / 2))
-    }
-  }
-
-  ; 根据坐标查找所在显示器。
-  ; 找不到时回退到主显示器，保证预览一定能显示出来。
-  getMonitorIndexAt(x, y) {
-    monitorCount := MonitorGetCount()
-
-    Loop monitorCount {
-      MonitorGet(A_Index, &left, &top, &right, &bottom)
-      if (x >= left && x < right && y >= top && y < bottom) {
-        return A_Index
-      }
-    }
-
-    return 1
+    return windowHelper.getCenteredPosition(previewWidth, previewHeight)
   }
 
   ; 生成窗口预览列表中的单行描述。
