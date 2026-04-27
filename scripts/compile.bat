@@ -11,7 +11,7 @@ if %errorlevel% neq 0 (
 )
 
 echo Compiling mine-key...
-powershell -NoProfile -ExecutionPolicy Bypass -File "scripts\compile.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "compile.ps1"
 
 pause
 exit /b

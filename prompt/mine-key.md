@@ -109,7 +109,6 @@
 ```text
 .
 ├── mineKey.ahk              # AHK v2 入口脚本
-├── compile.bat              # 构建入口，负责提权后调用 scripts/compile.ps1
 ├── config/
 │   ├── apps.ini             # 应用快捷键配置
 │   ├── ime.ini              # 输入法状态切换配置
@@ -124,6 +123,7 @@
 │   ├── keyMapManager.ahk    # 自定义按键映射
 │   └── windowControlManager.ahk # 通用窗口关闭和前后切换
 ├── scripts/
+│   ├── compile.bat          # 构建入口，负责提权后调用同目录 compile.ps1
 │   ├── compile.ps1          # 编译 mineKey.ahk 为 mine-key.exe
 │   ├── enableAutoStartup.bat # 添加开机计划任务
 │   └── disableAutoStartup.bat # 删除开机计划任务
@@ -158,7 +158,7 @@ PowerShell 中运行：
 
 当前脚本：
 
-- `compile.bat`：构建入口，请求管理员权限后调用 `scripts/compile.ps1`。
+- `scripts/compile.bat`：构建入口，请求管理员权限后调用同目录 `compile.ps1`。
 - `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程，编译 `mineKey.ahk` 为 `mine-key.exe`，并在成功后重启。
 - `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建计划任务 `\mine-key\mine-key`。
 - `scripts/disableAutoStartup.bat`：请求管理员权限，删除计划任务 `\mine-key\mine-key`。
@@ -166,7 +166,7 @@ PowerShell 中运行：
 构建命令：
 
 ```powershell
-.\compile.bat
+.\scripts\compile.bat
 ```
 
 添加开机启动：

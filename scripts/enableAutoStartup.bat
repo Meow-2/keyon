@@ -21,7 +21,7 @@ echo ===== Installing mine-key Task =====
 
 if not exist "%EXE_PATH%" (
     echo mine-key.exe not found at "%EXE_PATH%"
-    echo Please run compile.bat first.
+    echo Please run scripts\compile.bat first.
     pause
     exit /b 1
 )

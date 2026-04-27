@@ -285,10 +285,10 @@ sendKeys=#1
 构建脚本来自 `AutoKeyMap` 的同类脚本，并已适配为 `mine-key`：
 
 ```ps1
-.\compile.bat
+.\scripts\compile.bat
 ```
 
-`compile.bat` 会请求管理员权限，然后调用 `scripts\compile.ps1`。编译流程：
+`scripts\compile.bat` 会请求管理员权限，然后调用 `scripts\compile.ps1`。编译流程：
 
 1. 使用当前用户目录下的 Scoop AutoHotkey 路径：`%USERPROFILE%\scoop\apps\autohotkey\current\Compiler\Ahk2Exe.exe` 和 `%USERPROFILE%\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe`。
 2. 停止正在运行的 `mine-key.exe` 或 `mineKey.exe`。
@@ -309,7 +309,7 @@ sendKeys=#1
 .\scripts\disableAutoStartup.bat
 ```
 
-`disableAutoStartup.bat` 同样会在需要时请求管理员权限。注意：`enableAutoStartup.bat` 依赖已存在的 `mine-key.exe`，因此应先运行 `compile.bat`。
+`disableAutoStartup.bat` 同样会在需要时请求管理员权限。注意：`enableAutoStartup.bat` 依赖已存在的 `mine-key.exe`，因此应先运行 `scripts\compile.bat`。
 
 ## 注册表片段
 
