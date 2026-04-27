@@ -13,7 +13,6 @@ class windowControlManager {
     this.previewMaxItems := this.config.readNumber("windowControl", "previewMaxItems", 8)
     this.previewFontSize := this.config.readNumber("windowControl", "previewFontSize", 16)
     this.previewWidth := this.config.readNumber("windowControl", "previewWidth", 760)
-    this.windowCycleHwnds := []
     this.previewGui := ""
     this.previewSize := ""
     this.previewDpiScale := A_ScreenDPI ? A_ScreenDPI / 96 : 1
@@ -21,7 +20,9 @@ class windowControlManager {
     this.previewRowBars := []
     this.previewRowTexts := []
     this.hidePreviewCallback := ObjBindMethod(this, "hideWindowPreview")
-    this.hideManagedPreviewOnWinReleaseCallback := ObjBindMethod(this, "hideManagedPreviewWhenWinReleased")
+    this.managedSwitchActive := false
+    this.managedTargetHwnd := 0
+    this.finishManagedSwitchCallback := ObjBindMethod(this, "finishManagedWindowSwitchWhenWinReleased")
     this.systemSwitchActive := false
     this.systemCycleHotkeys := [
       { hotkey: this.buildSystemCycleKey(this.nextHotkey), callback: ObjBindMethod(this, "continueSystemWindowSwitch", 1) },
@@ -97,8 +98,16 @@ class windowControlManager {
       return false
     }
 
+    if (this.shouldDeferManagedWindowFocus(A_ThisHotkey)) {
+      targetIndex := this.getAdjacentWindowIndex(hwnds, this.getManagedSwitchAnchorHwnd(), direction)
+      this.setManagedSwitchSession(hwnds, targetIndex)
+      this.showWindowPreview(hwnds, targetIndex, true)
+      return true
+    }
+
+    this.resetManagedSwitchSession()
     targetIndex := this.getAdjacentWindowIndex(hwnds, WinExist("A"), direction)
-    this.showWindowPreview(hwnds, targetIndex, this.shouldHidePreviewOnWinRelease(A_ThisHotkey))
+    this.showWindowPreview(hwnds, targetIndex, false)
     return this.focusWindow(hwnds[targetIndex])
   }
 
@@ -283,26 +292,10 @@ class windowControlManager {
     return GetKeyState("LWin", "P") || GetKeyState("RWin", "P")
   }
 
-  ; 获取稳定的窗口切换序列。
-  ; 直接使用 WinGetList 的实时 Z 序会在每次激活后重排，导致连续切换只在最近两个窗口间跳动。
+  ; 获取当前窗口切换序列。
+  ; 这里直接使用当前 Z 序，让窗口管理面板始终按最近激活顺序排列。
   getWindowCycle() {
-    currentHwnds := this.getSwitchableWindows()
-    cycleHwnds := []
-
-    for hwnd in this.windowCycleHwnds {
-      if windowHelper.arrayHas(currentHwnds, hwnd) {
-        cycleHwnds.Push(hwnd)
-      }
-    }
-
-    for hwnd in currentHwnds {
-      if !windowHelper.arrayHas(cycleHwnds, hwnd) {
-        cycleHwnds.Push(hwnd)
-      }
-    }
-
-    this.windowCycleHwnds := cycleHwnds
-    return cycleHwnds
+    return this.getSwitchableWindows()
   }
 
   ; 获取当前可切换的普通窗口列表。
@@ -354,25 +347,32 @@ class windowControlManager {
   ; 预览窗口常驻复用，只隐藏不销毁，避免连续切换时反复创建顶层 GUI。
   hideWindowPreview() {
     SetTimer(this.hidePreviewCallback, 0)
-    SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 0)
+    SetTimer(this.finishManagedSwitchCallback, 0)
+    this.resetManagedSwitchSession()
 
     try if IsObject(this.previewGui) {
       this.previewGui.Hide()
     }
   }
 
-  ; Win 组合键触发的 managed 预览在松开 Win 时应立即消失。
-  ; 只在物理 Win 当前仍按下时启用，避免普通单次切换误触发这条路径。
-  hideManagedPreviewWhenWinReleased() {
+  ; Win 组合键触发的 managed 会话在松开 Win 时统一提交最终目标窗口。
+  ; 切换完成后再隐藏预览，避免按住 Win 连续预览时频繁抢焦点。
+  finishManagedWindowSwitchWhenWinReleased() {
     if this.isWinPhysicallyDown() {
       return
     }
 
+    targetHwnd := this.managedTargetHwnd
+    this.resetManagedSwitchSession()
     this.hideWindowPreview()
+
+    if targetHwnd {
+      this.focusWindow(targetHwnd)
+    }
   }
 
   ; 只有由 Win 修饰键触发且当前仍按住物理 Win 时，才需要在松开 Win 后立刻隐藏预览。
-  shouldHidePreviewOnWinRelease(hotkeyName) {
+  shouldDeferManagedWindowFocus(hotkeyName) {
     return this.isWinPhysicallyDown() && this.isWinModifierHotkey(hotkeyName)
   }
 
@@ -380,14 +380,37 @@ class windowControlManager {
   ; Win 组合键驱动的 managed 会话由 Win 键生命周期控制，其余情况仍使用超时隐藏。
   schedulePreviewHide(hideOnWinRelease) {
     SetTimer(this.hidePreviewCallback, 0)
-    SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 0)
+    SetTimer(this.finishManagedSwitchCallback, 0)
 
     if hideOnWinRelease {
-      SetTimer(this.hideManagedPreviewOnWinReleaseCallback, 20)
+      SetTimer(this.finishManagedSwitchCallback, 20)
       return
     }
 
     SetTimer(this.hidePreviewCallback, -Round(this.previewSeconds * 1000))
+  }
+
+  ; 返回 managed 会话中本轮切换应基于哪个窗口继续前进。
+  ; 已有会话时以上次选中窗口为锚点，否则以当前活动窗口为锚点。
+  getManagedSwitchAnchorHwnd() {
+    if (this.managedSwitchActive && this.managedTargetHwnd) {
+      return this.managedTargetHwnd
+    }
+
+    return WinExist("A")
+  }
+
+  ; 记录 managed 会话当前的候选窗口和目标窗口。
+  ; 连续按 Win+J/K 时只更新这里的目标，不立即切换系统焦点。
+  setManagedSwitchSession(hwnds, targetIndex) {
+    this.managedSwitchActive := true
+    this.managedTargetHwnd := hwnds[targetIndex]
+  }
+
+  ; 清空 managed 会话状态，避免下次窗口切换误用上一次的目标。
+  resetManagedSwitchSession() {
+    this.managedSwitchActive := false
+    this.managedTargetHwnd := 0
   }
 
   ; 判断热键字符串是否带 Win 修饰键。
