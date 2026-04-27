@@ -38,7 +38,7 @@ class appWindowManager {
         Hotkey(currentRule.hotkey, ObjBindMethod(this, "handleAppHotkey", currentRule), "On")
         registeredCount += 1
       } catch Error as err {
-        MsgBox("快捷键注册失败：" currentRule.name "`n" err.Message, "mine-key")
+        MsgBox("快捷键注册失败：" currentRule.name "`n" err.Message, "keyon")
       }
     }
 
@@ -274,7 +274,7 @@ class appWindowManager {
     try {
       this.runConfiguredTarget(currentRule, workingDir)
     } catch Error as err {
-      MsgBox("应用启动失败：" currentRule.name "`n" err.Message, "mine-key")
+      MsgBox("应用启动失败：" currentRule.name "`n" err.Message, "keyon")
       return false
     }
 
@@ -300,7 +300,7 @@ class appWindowManager {
   }
 
   ; 根据配置启动目标应用。
-  ; runAsAdmin=false 时通过普通权限 Explorer 代理启动，避免管理员权限的 mine-key 把子进程也带成管理员。
+  ; runAsAdmin=false 时通过普通权限 Explorer 代理启动，避免管理员权限的 keyon 把子进程也带成管理员。
   runConfiguredTarget(currentRule, workingDir) {
     if currentRule.runAsAdmin {
       runTarget := currentRule.target

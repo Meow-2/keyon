@@ -2,7 +2,7 @@
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
     <Author>Legion</Author>
-    <URI>\mine-key\mine-key</URI>
+    <URI>\keyon\keyon</URI>
   </RegistrationInfo>
   <Triggers>
     <LogonTrigger>
@@ -43,7 +43,7 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>C:\Users\Legion\Desktop\project\mine-key\scripts\..\mine-key.exe</Command>
+      <Command>C:\Users\Legion\Desktop\project\keyon\scripts\..\keyon.exe</Command>
     </Exec>
   </Actions>
 </Task>

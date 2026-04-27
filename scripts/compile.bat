@@ -10,7 +10,7 @@ if %errorlevel% neq 0 (
     exit /b
 )
 
-echo Compiling mine-key...
+echo Compiling keyon...
 powershell -NoProfile -ExecutionPolicy Bypass -File "compile.ps1"
 
 pause

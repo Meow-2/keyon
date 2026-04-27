@@ -25,7 +25,7 @@ class keyMapManager {
         Hotkey(windowHelper.buildHookHotkeyName(currentRule.hotkey), ObjBindMethod(this, "handleKeyMapHotkey", currentRule), "On")
         registeredCount += 1
       } catch Error as err {
-        MsgBox("按键映射注册失败：" currentRule.name "`n" err.Message, "mine-key")
+        MsgBox("按键映射注册失败：" currentRule.name "`n" err.Message, "keyon")
       }
     }
 

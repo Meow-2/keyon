@@ -21,7 +21,7 @@ class infoManager {
       Hotkey(this.hotkey, ObjBindMethod(this, "showCurrentInfo"), "On")
       return 1
     } catch Error as err {
-      MsgBox("信息查看快捷键注册失败：`n" err.Message, "mine-key")
+      MsgBox("信息查看快捷键注册失败：`n" err.Message, "keyon")
       return 0
     }
   }

@@ -43,7 +43,7 @@ class imeManager {
         Hotkey(hotkeyName, ObjBindMethod(this, "handleStateHotkey", currentRule), "On")
         registeredCount += 1
       } catch Error as err {
-        MsgBox("输入法快捷键注册失败：" currentRule.name "`n" err.Message, "mine-key")
+        MsgBox("输入法快捷键注册失败：" currentRule.name "`n" err.Message, "keyon")
       }
     }
 

@@ -36,5 +36,5 @@ registeredWindowControlCount := currentWindowControlManager.registerHotkeys()
 
 if (registeredCount = 0 && registeredImeCount = 0 && registeredInfoCount = 0 && registeredKeyMapCount = 0 && registeredWindowControlCount = 0) {
   ; 没有配置有效快捷键时仍保持脚本运行，方便用户编辑配置后手动重载。
-  OutputDebug("mine-key: 没有启用任何快捷键。")
+  OutputDebug("keyon: 没有启用任何快捷键。")
 }

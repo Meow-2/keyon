@@ -1,8 +1,8 @@
-# mine-key
+# keyon
 
-`mine-key` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现两类能力：应用窗口管理，以及输入法状态切换。
+`keyon` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现两类能力：应用窗口管理，以及输入法状态切换。
 
-当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/wintools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `mineKey.ahk`。
+当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/wintools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `keyon.ahk`。
 
 ## 环境要求
 
@@ -45,7 +45,7 @@ runAsAdmin=false
 3. 运行脚本：
 
 ```ps1
-& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" .\mineKey.ahk
+& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" .\keyon.ahk
 ```
 
 4. 按下示例快捷键 `Win + Alt + N`：
@@ -99,7 +99,7 @@ runAsAdmin=false
 - `wakeHotkey`：应用自己的呼出快捷键。可选，主要用于微信、QQ 等托盘应用。例如 `^!w` 表示 `Ctrl + Alt + W`。
 - `detectHidden`：是否额外查找隐藏窗口。可选，省略时默认 `false`。普通应用不建议开启，只有窗口被隐藏且普通查找找不到时再设为 `true`。
 - `waitSeconds`：启动或呼出应用后等待窗口出现的秒数。可选，省略时默认 `3`。应用启动较慢时可以调大，例如 `5` 或 `8`。
-- `runAsAdmin`：是否以管理员权限启动该应用。可选，省略时默认 `false`。由于 `mine-key.exe` 通常以管理员权限运行，`false` 会通过普通权限 Explorer 代理启动，避免把浏览器、编辑器、终端等应用也带成管理员进程；只有确实需要管理权限的目标才设为 `true`。
+- `runAsAdmin`：是否以管理员权限启动该应用。可选，省略时默认 `false`。由于 `keyon.exe` 通常以管理员权限运行，`false` 会通过普通权限 Explorer 代理启动，避免把浏览器、编辑器、终端等应用也带成管理员进程；只有确实需要管理权限的目标才设为 `true`。
 
 `matchMode` 详细说明：
 
@@ -275,14 +275,14 @@ sendKeys=#1
 修改脚本后，可以先运行静态检查：
 
 ```ps1
-& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" /ErrorStdOut .\mineKey.ahk --check
+& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" /ErrorStdOut .\keyon.ahk --check
 ```
 
 该命令只加载脚本并立即退出，用于确认入口文件和依赖模块可被 AutoHotkey v2 正常解析。
 
 ## 构建与开机启动
 
-构建脚本来自 `AutoKeyMap` 的同类脚本，并已适配为 `mine-key`：
+构建脚本来自 `AutoKeyMap` 的同类脚本，并已适配为 `keyon`：
 
 ```ps1
 .\scripts\compile.bat
@@ -291,9 +291,9 @@ sendKeys=#1
 `scripts\compile.bat` 会请求管理员权限，然后调用 `scripts\compile.ps1`。编译流程：
 
 1. 使用当前用户目录下的 Scoop AutoHotkey 路径：`%USERPROFILE%\scoop\apps\autohotkey\current\Compiler\Ahk2Exe.exe` 和 `%USERPROFILE%\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe`。
-2. 停止正在运行的 `mine-key.exe` 或 `mineKey.exe`。
-3. 将 `mineKey.ahk` 编译为 `mine-key.exe`。
-4. 编译成功后重新启动 `mine-key.exe`。
+2. 停止正在运行的 `keyon.exe`。
+3. 将 `keyon.ahk` 编译为 `keyon.exe`。
+4. 编译成功后重新启动 `keyon.exe`。
 
 编译成功后，可以添加开机启动任务：
 
@@ -301,7 +301,7 @@ sendKeys=#1
 .\scripts\enableAutoStartup.bat
 ```
 
-该脚本会请求管理员权限，创建计划任务 `\mine-key\mine-key`，在用户登录时以 `HighestAvailable` 权限运行 `mine-key.exe`。
+该脚本会请求管理员权限，创建计划任务 `\keyon\keyon`，在用户登录时以 `HighestAvailable` 权限运行 `keyon.exe`。
 
 移除开机启动任务：
 
@@ -309,7 +309,7 @@ sendKeys=#1
 .\scripts\disableAutoStartup.bat
 ```
 
-`disableAutoStartup.bat` 同样会在需要时请求管理员权限。注意：`enableAutoStartup.bat` 依赖已存在的 `mine-key.exe`，因此应先运行 `scripts\compile.bat`。
+`disableAutoStartup.bat` 同样会在需要时请求管理员权限。注意：`enableAutoStartup.bat` 依赖已存在的 `keyon.exe`，因此应先运行 `scripts\compile.bat`。
 
 ## 注册表片段
 
@@ -318,7 +318,7 @@ sendKeys=#1
 - `registry/exchangeEscCapsLock.reg`：系统级交换 `Esc` 和 `CapsLock`。该文件写入 `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Keyboard Layout`，导入需要管理员权限，通常需要注销或重启后生效。
 - `registry/xiaoHe.reg`：为当前用户配置微软拼音小鹤双拼。该文件写入 `HKEY_CURRENT_USER\Software\Microsoft\InputMethod\Settings\CHS`。
 
-导入前建议先确认文件内容，并备份相关注册表项。需要回滚时，应删除或恢复对应注册表值，而不是重新运行 `mine-key`。
+导入前建议先确认文件内容，并备份相关注册表项。需要回滚时，应删除或恢复对应注册表值，而不是重新运行 `keyon`。
 
 ## 当前限制
 
@@ -330,11 +330,11 @@ sendKeys=#1
 
 ## 参考项目
 
-本项目参考了以下开源项目的设计思路，并按 `mine-key` 的结构、命名和中文注释规范重新实现：
+本项目参考了以下开源项目的设计思路，并按 `keyon` 的结构、命名和中文注释规范重新实现：
 
 - [MyKeymap](https://github.com/xianyukang/MyKeymap)：参考应用启动、窗口激活和同应用窗口切换思路。
 - [InputTip](https://github.com/abgox/InputTip)：参考输入法状态检测、状态切换和输入法兼容思路。
 
 ## 规格文档
 
-功能规格和后续计划记录在 `prompt/mine-key.md`。修改功能前先更新该文档，再同步修改代码，确保行为可复现。
+功能规格和后续计划记录在 `prompt/keyon.md`。修改功能前先更新该文档，再同步修改代码，确保行为可复现。

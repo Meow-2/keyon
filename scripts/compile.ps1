@@ -1,4 +1,4 @@
-# Compile mineKey.ahk, stop old process before compiling, then restart.
+# Compile keyon.ahk, stop old process before compiling, then restart.
 
 $ErrorActionPreference = "Stop"
 
@@ -29,9 +29,9 @@ if (-not (Test-IsAdmin)) {
 }
 
 $projectDir = Split-Path -Parent $PSScriptRoot
-$sourceFile = Join-Path $projectDir "mineKey.ahk"
-$outputFile = Join-Path $projectDir "mine-key.exe"
-$processNames = @("mine-key", "mineKey")
+$sourceFile = Join-Path $projectDir "keyon.ahk"
+$outputFile = Join-Path $projectDir "keyon.exe"
+$processNames = @("keyon", "MuxKey", "mine-key", "mineKey")
 
 $scoopRoot = Join-Path $env:USERPROFILE "scoop"
 $ahkCompiler = Join-Path $scoopRoot "apps\autohotkey\current\Compiler\Ahk2Exe.exe"
@@ -66,7 +66,7 @@ foreach ($processName in $processNames) {
     }
 }
 
-Write-Host "Compiling mineKey.ahk..." -ForegroundColor Cyan
+Write-Host "Compiling keyon.ahk..." -ForegroundColor Cyan
 try {
     $processInfo = New-Object System.Diagnostics.ProcessStartInfo
     $processInfo.FileName = $ahkCompiler
@@ -95,11 +95,11 @@ catch {
     exit 1
 }
 
-Write-Host "Starting mine-key.exe..." -ForegroundColor Cyan
+Write-Host "Starting keyon.exe..." -ForegroundColor Cyan
 try {
     Start-Process -FilePath $outputFile -WorkingDirectory $projectDir
     Start-Sleep -Milliseconds 500
-    Write-Host "mine-key started." -ForegroundColor Green
+    Write-Host "keyon started." -ForegroundColor Green
 }
 catch {
     Write-Host "Warning: failed to start. Please run manually: $outputFile" -ForegroundColor Yellow

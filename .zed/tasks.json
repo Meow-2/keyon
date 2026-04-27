@@ -1,6 +1,6 @@
 [
   {
-    "label": "compile mine-key",
+    "label": "compile keyon",
     "command": "$ZED_WORKTREE_ROOT/scripts/compile.bat",
     "args": [],
     "cwd": "$ZED_WORKTREE_ROOT",

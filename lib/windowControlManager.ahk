@@ -65,7 +65,7 @@ class windowControlManager {
       Hotkey(hotkeyName, callback, "On")
       return 1
     } catch Error as err {
-      MsgBox("窗口管理快捷键注册失败：" actionName "`n" err.Message, "mine-key")
+      MsgBox("窗口管理快捷键注册失败：" actionName "`n" err.Message, "keyon")
       return 0
     }
   }

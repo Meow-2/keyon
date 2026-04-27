@@ -1,14 +1,14 @@
-# mine-key 工程规格
+# keyon 工程规格
 
 ## 文档目的
 
-本文件用于记录 `mine-key` AHK 工程的真实需求、实现约束和复现步骤。后续功能确认后，应先更新本文档，再同步修改程序，保证文档与代码一致。
+本文件用于记录 `keyon` AHK 工程的真实需求、实现约束和复现步骤。后续功能确认后，应先更新本文档，再同步修改程序，保证文档与代码一致。
 
 ## 已确认信息
 
-- 项目名称：`mine-key`。
-- 规格文件：`prompt/mine-key.md`。
-- 入口文件：`mineKey.ahk`。
+- 项目名称：`keyon`。
+- 规格文件：`prompt/keyon.md`。
+- 入口文件：`keyon.ahk`。
 - 运行环境：Windows 11。
 - 默认终端：PowerShell。
 - 脚本版本：AutoHotkey v2，本次实现已在入口文件中声明 `#Requires AutoHotkey v2.0`。
@@ -108,7 +108,7 @@
 
 ```text
 .
-├── mineKey.ahk              # AHK v2 入口脚本
+├── keyon.ahk                # AHK v2 入口脚本
 ├── config/
 │   ├── apps.ini             # 应用快捷键配置
 │   ├── ime.ini              # 输入法状态切换配置
@@ -124,14 +124,14 @@
 │   └── windowControlManager.ahk # 通用窗口关闭和前后切换
 ├── scripts/
 │   ├── compile.bat          # 构建入口，负责提权后调用同目录 compile.ps1
-│   ├── compile.ps1          # 编译 mineKey.ahk 为 mine-key.exe
+│   ├── compile.ps1          # 编译 keyon.ahk 为 keyon.exe
 │   ├── enableAutoStartup.bat # 添加开机计划任务
 │   └── disableAutoStartup.bat # 删除开机计划任务
 ├── registry/
 │   ├── exchangeEscCapsLock.reg # 系统级交换 Esc 与 CapsLock
 │   └── xiaoHe.reg              # 当前用户的微软拼音小鹤双拼配置
 └── prompt/
-    └── mine-key.md          # 本规格文件
+    └── keyon.md             # 本规格文件
 ```
 
 ## 运行方式
@@ -139,29 +139,29 @@
 PowerShell 中运行：
 
 ```powershell
-& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" .\mineKey.ahk
+& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" .\keyon.ahk
 ```
 
-如果系统已把 `.ahk` 文件关联到 AutoHotkey v2，也可以直接双击 `mineKey.ahk`。
+如果系统已把 `.ahk` 文件关联到 AutoHotkey v2，也可以直接双击 `keyon.ahk`。
 
 静态语法检查：
 
 ```powershell
-& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" /ErrorStdOut .\mineKey.ahk --check
+& "$env:USERPROFILE\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe" /ErrorStdOut .\keyon.ahk --check
 ```
 
 `--check` 只加载脚本并立即退出，用于验证语法和依赖文件是否可加载。
 
 ## 构建与开机启动
 
-已确认目标：复用上级目录 `AutoKeyMap` 中的构建和开机任务脚本思路，并适配为 `mine-key`。
+已确认目标：复用上级目录 `AutoKeyMap` 中的构建和开机任务脚本思路，并适配为 `keyon`。
 
 当前脚本：
 
 - `scripts/compile.bat`：构建入口，请求管理员权限后调用同目录 `compile.ps1`。
-- `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程，编译 `mineKey.ahk` 为 `mine-key.exe`，并在成功后重启。
-- `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建计划任务 `\mine-key\mine-key`。
-- `scripts/disableAutoStartup.bat`：请求管理员权限，删除计划任务 `\mine-key\mine-key`。
+- `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程，编译 `keyon.ahk` 为 `keyon.exe`，并在成功后重启。
+- `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建计划任务 `\keyon\keyon`。
+- `scripts/disableAutoStartup.bat`：请求管理员权限，删除计划任务 `\keyon\keyon`。
 
 构建命令：
 
@@ -181,11 +181,11 @@ PowerShell 中运行：
 .\scripts\disableAutoStartup.bat
 ```
 
-`enableAutoStartup.bat` 依赖 `mine-key.exe` 已存在，因此应先执行构建。开机任务使用 `HighestAvailable`，所以添加和移除任务时需要管理员权限。
+`enableAutoStartup.bat` 依赖 `keyon.exe` 已存在，因此应先执行构建。开机任务使用 `HighestAvailable`，所以添加和移除任务时需要管理员权限。
 
 ## 注册表片段
 
-已确认目标：把上级参考项目中的注册表片段纳入本项目，作为可选手动配置，不由 `mine-key` 自动导入。
+已确认目标：把上级参考项目中的注册表片段纳入本项目，作为可选手动配置，不由 `keyon` 自动导入。
 
 当前文件：
 
@@ -227,7 +227,7 @@ runAsAdmin=false
 - `wakeHotkey`：可选；用于呼出托盘或后台应用。
 - `detectHidden`：是否额外枚举隐藏窗口。
 - `waitSeconds`：启动或呼出后等待窗口出现的秒数。
-- `runAsAdmin`：是否以管理员权限启动目标应用，省略时默认 `false`；`false` 应尽量通过普通权限 Explorer 代理启动，避免管理员权限的 `mine-key.exe` 把子进程也带成管理员。
+- `runAsAdmin`：是否以管理员权限启动目标应用，省略时默认 `false`；`false` 应尽量通过普通权限 Explorer 代理启动，避免管理员权限的 `keyon.exe` 把子进程也带成管理员。
 
 输入法状态切换配置位于 `config/ime.ini`。当前实际启用状态以该文件内容为准。
 
@@ -321,7 +321,7 @@ sendKeys=#1
 
 ## 验收标准
 
-- `mineKey.ahk --check` 可以正常退出，表示脚本语法和引用文件可加载。
+- `keyon.ahk --check` 可以正常退出，表示脚本语法和引用文件可加载。
 - 未配置有效应用时，脚本不应报错。
 - 未配置有效输入法快捷键时，脚本不应报错。
 - 未配置有效工具快捷键时，脚本不应报错。
