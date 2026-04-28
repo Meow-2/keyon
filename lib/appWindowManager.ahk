@@ -150,6 +150,47 @@ class appWindowManager {
     return exists != 0
   }
 
+  ; 在超时时间内反复查找并尝试激活真正可用的目标窗口。
+  ; 适用于浏览器等多进程应用：进程先启动，但主窗口标题、可见性或可激活状态会稍后才稳定。
+  waitAndFocusWindow(currentRule) {
+    if (currentRule.winTitle = "") {
+      return false
+    }
+
+    deadline := A_TickCount + Max(0.5, currentRule.waitSeconds) * 1000
+
+    while (A_TickCount <= deadline) {
+      if this.tryFocusManagedWindow(currentRule, true, deadline) {
+        return true
+      }
+
+      if this.tryFocusManagedWindow(currentRule, false, deadline) {
+        return true
+      }
+
+      Sleep(100)
+    }
+
+    return false
+  }
+
+  ; 在当前轮次里从候选窗口中选择一个并尝试聚焦。
+  ; onlyVisible=true 时优先命中已经显示在桌面上的主窗口，否则退回可呼出的窗口。
+  tryFocusManagedWindow(currentRule, onlyVisible, deadline) {
+    hwnds := this.findManagedWindows(currentRule, onlyVisible)
+    if !hwnds.Length {
+      return false
+    }
+
+    remainingMs := deadline - A_TickCount
+    if (remainingMs <= 0) {
+      return false
+    }
+
+    activationWaitSeconds := Min(1, remainingMs / 1000)
+    return this.focusWindow(hwnds[1], activationWaitSeconds)
+  }
+
   ; 在指定窗口匹配环境下执行操作，并恢复 AHK 全局匹配设置。
   ; DetectHiddenWindows 和 TitleMatchMode 都是进程级状态，集中封装可以避免某次窗口查找污染后续逻辑。
   withWindowMatchOptions(includeHidden, matchMode, action, defaultValue) {
@@ -250,16 +291,7 @@ class appWindowManager {
       return true
     }
 
-    if !this.waitForWindow(currentRule) {
-      return false
-    }
-
-    callableHwnds := this.findManagedWindows(currentRule, false)
-    if !callableHwnds.Length {
-      return false
-    }
-
-    return this.focusWindow(callableHwnds[1], currentRule.waitSeconds)
+    return this.waitAndFocusWindow(currentRule)
   }
 
   ; 启动应用，并在启动后尽量等待和聚焦匹配窗口。
@@ -282,21 +314,7 @@ class appWindowManager {
       return true
     }
 
-    if !this.waitForWindow(currentRule) {
-      return false
-    }
-
-    visibleHwnds := this.findManagedWindows(currentRule, true)
-    if (visibleHwnds.Length) {
-      return this.focusWindow(visibleHwnds[1], currentRule.waitSeconds)
-    }
-
-    callableHwnds := this.findManagedWindows(currentRule, false)
-    if (callableHwnds.Length) {
-      return this.focusWindow(callableHwnds[1], currentRule.waitSeconds)
-    }
-
-    return false
+    return this.waitAndFocusWindow(currentRule)
   }
 
   ; 根据配置启动目标应用。
