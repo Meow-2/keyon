@@ -23,8 +23,6 @@
 - 需要特殊呼出热键的后台应用，例如托盘应用。
 - 真实启用的输入法状态切换快捷键。
 - 真实启用的窗口与输入法信息查看快捷键。
-- 是否需要按活动窗口自动切换输入法状态。
-
 ## 快捷键打开应用
 
 已确认目标：用快捷键管理应用的启动、呼出和同应用窗口切换。每个应用后续通过配置绑定一个快捷键。
@@ -43,9 +41,9 @@
 
 ## 输入法状态管理
 
-已确认目标：允许检测当前输入法状态，并在需要时自动切换到指定状态。当前实现先支持“按下某个可配置快捷键后，切换到某个目标状态”。
+已确认目标：允许检测当前输入法状态，并在需要时自动切换到指定状态。当前实现支持两类触发方式：按下某个可配置快捷键后切换到目标状态，以及根据当前活动窗口自动切换到该应用的默认输入法状态。
 
-参考来源：`InputTip/` 是本仓库内的开源参考项目；输入法功能参考其状态码、切换码、通用模式和状态切换快捷键思路，但本项目按自身规范重新实现。
+参考来源：`InputTip` 开源项目；输入法功能参考其状态码、切换码、通用模式、状态切换快捷键，以及“指定窗口自动切换状态”的进程级匹配思路，但本项目按自身规范重新实现。
 
 当前支持的输入法配置档：
 
@@ -70,6 +68,10 @@
 每个快捷键可配置 `sendAfterSwitch`：切换逻辑执行后再主动发送指定按键，值使用 AHK `Send` 语法。典型用法是 `hotkey=Esc`、`passThrough=false`、`sendAfterSwitch={Esc}`，表示先切到英文，再发送一次 `Esc`。
 
 如果 `passThrough=true` 且触发键本身就是当前切换方式使用的按键，程序应先等待原按键生效，避免额外模拟同一按键造成二次切换。
+
+活动窗口自动切换通过 `config/ime.ini` 中的 `[appDefaults]`、`[appDefault.toEnglish]` 和 `[appDefault.toChinese]` 配置。实现参考 InputTip 的窗口触发逻辑：周期性检查当前活动窗口的进程名；只有从一个进程切换到另一个进程时才触发。匹配到规则后复用当前输入法切换逻辑，只在当前状态不是目标状态时执行切换。
+
+当前自动切换只支持按进程名配置英文和中文两组默认状态，不支持标题级规则，也不支持 `TOGGLE`，避免配置复杂和窗口切换时产生不可预测的翻转。
 
 ## 信息查看
 
@@ -242,11 +244,25 @@ checkTimeout=500
 enabled=true
 hotkey=CapsLock
 targetState=EN
-winTitles=ahk_exe Code.exe|ahk_exe WeChat.exe
-matchMode=contains
+processNames=Code.exe|WeChat.exe
 passThrough=false
 switchMethod=dll
 sendAfterSwitch=
+
+[appDefaults]
+enabled=true
+interval=100
+focusDelay=80
+
+[appDefault.toEnglish]
+enabled=true
+processNames=WindowsTerminal.exe
+switchMethod=dll
+
+[appDefault.toChinese]
+enabled=true
+processNames=Weixin.exe|WXWork.exe
+switchMethod=dll
 ```
 
 字段说明：
@@ -257,10 +273,15 @@ sendAfterSwitch=
 - `checkTimeout`：读取输入法状态的超时时间，单位毫秒。
 - `cnConversionMode`：可选；覆盖当前配置档切换到中文时使用的转换码。
 - `targetState`：快捷键触发后的目标状态，支持 `CN`、`EN`、`TOGGLE`。
-- `winTitles`：可选；限制该热键只在多个匹配的活动窗口生效，使用 `|` 分隔多个规则；留空时表示全局生效。
-- `matchMode`：可选；`winTitles` 中每条规则的匹配方式，支持 `contains`、`exact`、`startsWith`、`regex`，省略时默认 `contains`。
+- `processNames`：可选；限制该热键只在多个匹配的活动窗口进程中生效，使用 `|` 分隔多个进程名；留空时表示全局生效。
 - `passThrough`：是否让快捷键在触发切换后保留按键原本作用。
 - `sendAfterSwitch`：切换逻辑执行后主动发送的按键；适合需要先切输入法再保留原按键作用的场景，例如 `{Esc}`。
+- `[appDefaults] enabled`：是否启用活动窗口自动切换输入法状态。
+- `[appDefaults] interval`：检查活动窗口变化的间隔，单位毫秒，省略时默认 `100`。
+- `[appDefaults] focusDelay`：检测到窗口变化后，等待焦点稳定再切换的延迟，单位毫秒，省略时默认 `80`。
+- `[appDefault.toEnglish] processNames`：进入这些活动窗口进程时自动切到英文状态。
+- `[appDefault.toChinese] processNames`：进入这些活动窗口进程时自动切到中文状态。
+- `[appDefault.toEnglish] switchMethod` / `[appDefault.toChinese] switchMethod`：可选；覆盖对应默认状态组使用的切换方式。
 
 AHK 自定义组合键使用 `前缀键 & 触发键` 格式，例如 `hotkey=Esc & a`。输入法热键注册逻辑应保留该格式，不自动添加 `$` 前缀。
 
@@ -332,6 +353,7 @@ sendKeys=#1
 - 配置有效应用后，按下对应快捷键应按本文档状态表执行。
 - 启动、呼出、切换窗口三条路径最终都应尝试激活目标窗口并获取焦点。
 - 配置有效输入法快捷键后，按下该键应先检测当前状态；如果当前状态不同，再切换到目标状态。
+- 配置有效应用默认输入法状态后，切换到匹配窗口时应先检测当前状态；如果当前状态不同，再切换到该窗口的目标状态。
 - 配置有效信息查看快捷键后，按下该键应显示当前窗口信息和输入法状态。
 - 配置有效窗口管理快捷键后，关闭、上一个窗口、下一个窗口应对普通活动窗口生效。
 - 行为变化必须先更新本文档，再修改代码。

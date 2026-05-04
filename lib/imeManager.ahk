@@ -2,16 +2,30 @@
 ; 只保存热键、目标状态和是否透传原按键，不直接执行切换。
 class imeHotkeyRule {
   ; 初始化一条输入法快捷键规则。
-  ; targetState 支持 CN、EN、TOGGLE；scopeWinTitles 支持把同一热键限定到多个 app。
-  __New(name, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeWinTitles, matchMode) {
+  ; targetState 支持 CN、EN、TOGGLE；scopeProcessNames 支持把同一热键限定到多个 app。
+  __New(name, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeProcessNames) {
     this.name := name
     this.hotkey := hotkey
     this.targetState := targetState
     this.passThrough := passThrough
     this.switchMethod := switchMethod
     this.sendAfterSwitch := sendAfterSwitch
-    this.scopeWinTitles := scopeWinTitles
-    this.matchMode := matchMode
+    this.scopeProcessNames := scopeProcessNames
+  }
+}
+
+; 单个应用默认输入法状态规则的内存结构。
+; 只保留 toEnglish/toChinese 两组规则，目标状态由 section 名称决定。
+class imeAppDefaultRule {
+  __New(name, targetState, processNames, switchMethod) {
+    this.name := name
+    this.targetState := targetState
+    this.processNames := processNames
+    this.switchMethod := switchMethod
+
+    ; 复用 switchToState() 时需要这些字段，自动切换场景不透传也没有触发热键。
+    this.passThrough := false
+    this.hotkey := ""
   }
 }
 
@@ -27,7 +41,14 @@ class imeManager {
     this.switchMethod := this.normalizeSwitchMethod(this.config.readText("general", "switchMethod", "dll"))
     this.checkTimeout := this.config.readNumber("general", "checkTimeout", 500)
     this.cnConversionMode := this.config.readNumber("general", "cnConversionMode", this.getDefaultCnConversionMode())
+    this.appDefaultsEnabled := this.config.readBool("appDefaults", "enabled", false)
+    this.appDefaultInterval := Max(50, this.config.readNumber("appDefaults", "interval", 100))
+    this.appDefaultFocusDelay := Max(0, this.config.readNumber("appDefaults", "focusDelay", 80))
     this.hotkeyRules := this.loadHotkeyRules()
+    this.appDefaultRules := this.loadAppDefaultRules()
+    this.lastAppDefaultProcessName := ""
+    this.appDefaultChecking := false
+    this.checkAppDefaultCallback := ObjBindMethod(this, "checkAppDefaultState")
   }
 
   ; 注册所有启用的输入法状态切换快捷键。
@@ -48,6 +69,8 @@ class imeManager {
         MsgBox("输入法快捷键注册失败：" currentRule.name "`n" err.Message, "keyon")
       }
     }
+
+    registeredCount += this.startAppDefaultWatcher()
 
     return registeredCount
   }
@@ -310,64 +333,178 @@ class imeManager {
       passThrough := this.config.readBool(sectionName, "passThrough", false)
       switchMethod := this.normalizeSwitchMethod(this.config.readText(sectionName, "switchMethod", this.switchMethod))
       sendAfterSwitch := this.config.readText(sectionName, "sendAfterSwitch")
-      scopeWinTitles := this.parseScopeWinTitles(sectionName)
-      matchMode := this.normalizeMatchMode(this.config.readText(sectionName, "matchMode", "contains"))
+      scopeProcessNames := this.parseProcessNames(sectionName)
 
       if (hotkey = "" || targetState = "") {
         continue
       }
 
-      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeWinTitles, matchMode))
+      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeProcessNames))
     }
 
     return hotkeyRules
   }
 
-  ; 判断单条输入法热键是否应在当前活动窗口生效。
-  ; 未配置作用域时保持全局行为；配置后任一窗口规则匹配即生效。
-  isHotkeyActiveForCurrentWindow(currentRule) {
-    if !IsObject(currentRule) || !IsObject(currentRule.scopeWinTitles) || currentRule.scopeWinTitles.Length = 0 {
-      return true
-    }
-
-    previousMatchMode := A_TitleMatchMode
-    SetTitleMatchMode(this.toAhkTitleMatchMode(currentRule.matchMode))
-
-    try {
-      for currentWinTitle in currentRule.scopeWinTitles {
-        if (currentWinTitle != "" && WinActive(currentWinTitle) != 0) {
-          return true
-        }
-      }
-
-      return false
-    } finally {
-      SetTitleMatchMode(previousMatchMode)
-    }
+  ; 从 config/ime.ini 读取固定的 appDefault.toEnglish 和 appDefault.toChinese。
+  ; 目标状态由 section 名称决定，应用范围统一用 processNames 配置。
+  loadAppDefaultRules() {
+    appDefaultRules := []
+    this.pushAppDefaultRule(appDefaultRules, "appDefault.toEnglish", "EN")
+    this.pushAppDefaultRule(appDefaultRules, "appDefault.toChinese", "CN")
+    return appDefaultRules
   }
 
-  ; 解析单条热键的 app 作用域。
-  ; 只支持用 winTitles 通过分隔符声明多个窗口规则。
-  parseScopeWinTitles(sectionName) {
-    scopeWinTitles := []
-    multipleWinTitles := this.config.readText(sectionName, "winTitles")
-
-    normalizedListText := StrReplace(StrReplace(StrReplace(multipleWinTitles, "，", "|"), ",", "|"), ";", "|")
-    for currentWinTitle in StrSplit(normalizedListText, "|") {
-      this.pushScopeWinTitle(scopeWinTitles, currentWinTitle)
-    }
-
-    return scopeWinTitles
-  }
-
-  ; 向作用域列表追加单条窗口规则，并自动去重。
-  pushScopeWinTitle(scopeWinTitles, winTitle) {
-    normalizedWinTitle := Trim(winTitle)
-    if (normalizedWinTitle = "" || this.arrayHas(scopeWinTitles, normalizedWinTitle)) {
+  ; 读取并追加一组固定目标状态的应用默认规则。
+  pushAppDefaultRule(appDefaultRules, sectionName, targetState) {
+    if !this.config.readBool(sectionName, "enabled", true) {
       return
     }
 
-    scopeWinTitles.Push(normalizedWinTitle)
+    processNames := this.parseProcessNames(sectionName)
+    if (processNames.Length = 0) {
+      return
+    }
+
+    switchMethod := this.normalizeSwitchMethod(this.config.readText(sectionName, "switchMethod", this.switchMethod))
+    appDefaultRules.Push(imeAppDefaultRule(sectionName, targetState, processNames, switchMethod))
+  }
+
+  ; 启动活动窗口监听轮询。
+  ; InputTip 使用主循环检查进程名变化；这里用 SetTimer 保持本项目 manager 模式。
+  startAppDefaultWatcher() {
+    if (!this.appDefaultsEnabled || this.appDefaultRules.Length = 0) {
+      return 0
+    }
+
+    SetTimer(this.checkAppDefaultCallback, this.appDefaultInterval)
+    this.checkAppDefaultState()
+    return 1
+  }
+
+  ; 检查当前活动窗口是否命中默认输入法状态规则。
+  ; 仅在活动窗口进程变化时触发，避免同一应用内切换标题时重复切换。
+  checkAppDefaultState(*) {
+    if this.appDefaultChecking {
+      return false
+    }
+
+    this.appDefaultChecking := true
+
+    try {
+      processName := this.getActiveProcessName()
+      if (processName = "" || this.isSameProcessName(processName, this.lastAppDefaultProcessName)) {
+        return false
+      }
+
+      if (this.appDefaultFocusDelay > 0) {
+        Sleep(this.appDefaultFocusDelay)
+      }
+
+      processName := this.getActiveProcessName()
+      if (processName = "" || this.isSameProcessName(processName, this.lastAppDefaultProcessName)) {
+        return false
+      }
+
+      matchedRule := this.findMatchingAppDefaultRule(processName)
+      this.lastAppDefaultProcessName := processName
+
+      if !IsObject(matchedRule) {
+        return false
+      }
+
+      if !this.canManageInputState() {
+        return false
+      }
+
+      return this.switchToState(matchedRule.targetState, matchedRule)
+    } catch Error as err {
+      OutputDebug("keyon: 应用默认输入法状态切换失败：" err.Message)
+      return false
+    } finally {
+      this.appDefaultChecking := false
+    }
+  }
+
+  ; 读取当前活动窗口的进程名。
+  ; 热键作用域和应用默认状态都统一基于进程名判断。
+  getActiveProcessName() {
+    activeHwnd := WinExist("A")
+    if !activeHwnd {
+      return ""
+    }
+
+    try {
+      return WinGetProcessName(windowHelper.toWinId(activeHwnd))
+    } catch Error {
+      return ""
+    }
+  }
+
+  ; 查找当前进程命中的应用默认状态规则。
+  ; toEnglish 和 toChinese 如果都包含同一个进程，配置顺序固定为 toEnglish 优先。
+  findMatchingAppDefaultRule(processName) {
+    for currentRule in this.appDefaultRules {
+      if this.processNameMatchesAny(processName, currentRule.processNames) {
+        return currentRule
+      }
+    }
+
+    return ""
+  }
+
+  ; 判断两个进程名是否一致；进程名按 Windows 习惯做大小写不敏感匹配。
+  isSameProcessName(leftProcessName, rightProcessName) {
+    return StrLower(Trim(leftProcessName)) = StrLower(Trim(rightProcessName))
+  }
+
+  ; 判断单条输入法热键是否应在当前活动窗口生效。
+  ; 未配置 processNames 时保持全局行为；配置后当前进程名命中任一项即生效。
+  isHotkeyActiveForCurrentWindow(currentRule) {
+    if !IsObject(currentRule) || !IsObject(currentRule.scopeProcessNames) || currentRule.scopeProcessNames.Length = 0 {
+      return true
+    }
+
+    processName := this.getActiveProcessName()
+    if (processName = "") {
+      return false
+    }
+
+    return this.processNameMatchesAny(processName, currentRule.scopeProcessNames)
+  }
+
+  ; 解析进程名列表。
+  ; 支持用 |、英文/中文逗号、分号分隔，供 hotkey.* 和 appDefault.* 复用。
+  parseProcessNames(sectionName) {
+    processNames := []
+    multipleProcessNames := this.config.readText(sectionName, "processNames")
+
+    normalizedListText := StrReplace(StrReplace(StrReplace(multipleProcessNames, "，", "|"), ",", "|"), ";", "|")
+    for currentProcessName in StrSplit(normalizedListText, "|") {
+      this.pushProcessName(processNames, currentProcessName)
+    }
+
+    return processNames
+  }
+
+  ; 向进程名列表追加单项，并按大小写不敏感方式去重。
+  pushProcessName(processNames, processName) {
+    normalizedProcessName := Trim(processName)
+    if (normalizedProcessName = "" || this.processNameMatchesAny(normalizedProcessName, processNames)) {
+      return
+    }
+
+    processNames.Push(normalizedProcessName)
+  }
+
+  ; 判断当前进程名是否命中配置列表。
+  processNameMatchesAny(processName, processNames) {
+    for currentProcessName in processNames {
+      if this.isSameProcessName(processName, currentProcessName) {
+        return true
+      }
+    }
+
+    return false
   }
 
   ; 在输入法切换逻辑执行后主动补发按键。
@@ -424,6 +561,8 @@ class imeManager {
     }
   }
 
+
+
   ; 统一切换方式写法。
   ; 配置无效时回退到 dll，保证默认行为可预测。
   normalizeSwitchMethod(switchMethod) {
@@ -443,51 +582,7 @@ class imeManager {
     }
   }
 
-  ; 统一配置里的窗口匹配方式。
-  ; 默认 contains 对 ahk_exe 和普通标题都更宽松，便于只给特定 app 生效。
-  normalizeMatchMode(matchMode) {
-    matchMode := StrLower(Trim(matchMode))
 
-    switch matchMode {
-      case "contains", "contain", "2", "":
-        return "contains"
-      case "exact", "3":
-        return "exact"
-      case "startswith", "prefix", "1":
-        return "startsWith"
-      case "regex", "regexp", "regular":
-        return "regex"
-      default:
-        return "contains"
-    }
-  }
-
-  ; 把配置里的 matchMode 转换成 AHK SetTitleMatchMode 可用值。
-  toAhkTitleMatchMode(matchMode) {
-    switch this.normalizeMatchMode(matchMode) {
-      case "contains":
-        return 2
-      case "exact":
-        return 3
-      case "startsWith":
-        return 1
-      case "regex":
-        return "RegEx"
-      default:
-        return 2
-    }
-  }
-
-  ; 判断数组中是否已有指定值。
-  arrayHas(values, expectedValue) {
-    for currentValue in values {
-      if (currentValue = expectedValue) {
-        return true
-      }
-    }
-
-    return false
-  }
 
   ; 根据输入法配置档返回默认中文转换码。
   ; 微软拼音默认 1025，微信输入法默认 1；用户可用 cnConversionMode 覆盖。

@@ -127,8 +127,7 @@ checkTimeout=500
 enabled=true
 hotkey=CapsLock
 targetState=EN
-winTitles=ahk_exe Code.exe|ahk_exe WeChat.exe
-matchMode=contains
+processNames=Code.exe|WeChat.exe
 passThrough=false
 switchMethod=dll
 ```
@@ -140,8 +139,7 @@ switchMethod=dll
 enabled=true
 hotkey=Esc
 targetState=EN
-winTitles=ahk_exe WeChat.exe
-matchMode=contains
+processNames=WeChat.exe
 passThrough=false
 switchMethod=dll
 sendAfterSwitch={Esc}
@@ -164,6 +162,25 @@ passThrough=true
 switchMethod=dll
 ```
 
+下面示例启用“按应用默认输入法状态自动切换”：进入 Windows Terminal 时切到英文，进入微信或企业微信时切到中文：
+
+```ini
+[appDefaults]
+enabled=true
+interval=100
+focusDelay=80
+
+[appDefault.toEnglish]
+enabled=true
+processNames=WindowsTerminal.exe
+switchMethod=dll
+
+[appDefault.toChinese]
+enabled=true
+processNames=WeChat.exe|WXWork.exe
+switchMethod=dll
+```
+
 字段含义：
 
 - `profile`：输入法配置档，当前支持 `microsoftPinyin` 和 `wechatInput`。
@@ -173,10 +190,16 @@ switchMethod=dll
 - `cnConversionMode`：可选；覆盖当前配置档切换到中文时使用的转换码。
 - `hotkey`：触发切换的 AHK 热键。
 - `targetState`：目标状态，支持 `CN`、`EN`、`TOGGLE`。
-- `winTitles`：可选；限制该热键只在多个指定活动窗口生效。用 `|` 分隔多个规则，例如 `ahk_exe Code.exe|ahk_exe WeChat.exe|ahk_exe Zed.exe`。留空时表示全局生效。
-- `matchMode`：可选；`winTitles` 中每条规则的匹配方式，支持 `contains`、`exact`、`startsWith`、`regex`，省略时默认 `contains`。
+- `processNames`：可选；限制该热键只在多个指定活动窗口进程中生效。用 `|` 分隔多个进程名，例如 `Code.exe|WeChat.exe|Zed.exe`。留空时表示全局生效。
 - `passThrough`：是否保留按键原本作用。`true` 会让按键继续传递给系统或当前应用，`false` 会拦截该按键。
 - `sendAfterSwitch`：切换逻辑执行后主动发送的按键。可选，使用 AHK `Send` 语法，例如 `{Esc}`。需要先切输入法再保留原按键作用时，优先使用 `passThrough=false` 加 `sendAfterSwitch`。
+- `[appDefaults] enabled`：是否启用按活动窗口自动切换输入法状态。`[appDefault.toEnglish]` 和 `[appDefault.toChinese]` 都没有配置 `processNames` 时不会启动轮询。
+- `[appDefaults] interval`：检查活动窗口变化的间隔，单位毫秒。可选，省略时默认 `100`。
+- `[appDefaults] focusDelay`：检测到窗口变化后等待焦点稳定的延迟，单位毫秒。可选，省略时默认 `80`。
+- `[appDefault.toEnglish] enabled` / `[appDefault.toChinese] enabled`：是否启用英文或中文默认状态规则。可选，省略时默认启用。
+- `[appDefault.toEnglish] processNames`：进入这些活动窗口进程时自动切到英文状态。
+- `[appDefault.toChinese] processNames`：进入这些活动窗口进程时自动切到中文状态。
+- `[appDefault.toEnglish] switchMethod` / `[appDefault.toChinese] switchMethod`：可选；覆盖该组自动切换规则使用的切换方式，省略时使用 `[general] switchMethod`。
 
 `Esc + 字母` 这类组合键使用 AHK 自定义组合键写法，例如：
 
@@ -330,7 +353,7 @@ sendKeys=#1
 
 - 默认配置没有启用任何真实应用。
 - 托盘应用、虚拟桌面窗口和特殊 UWP 窗口可能需要额外的 `processName`、`wakeHotkey` 或匹配规则。
-- 输入法功能当前支持按键触发的状态切换；按活动窗口自动切换输入法状态尚未实现。
+- 按活动窗口自动切换输入法状态依赖当前窗口可被读取进程名、标题和输入法状态；部分游戏、沙盒窗口或特殊权限窗口可能无法稳定切换。
 - 不同输入法对状态码和切换码的支持存在差异。如果 `dll` 不稳定，可尝试 `lShift`、`rShift` 或 `ctrlSpace`。
 - 工具类快捷键默认未启用，需要在 `config/wintools.ini` 中手动取消注释或新增配置。
 
