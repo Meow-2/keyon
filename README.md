@@ -127,6 +127,8 @@ checkTimeout=500
 enabled=true
 hotkey=CapsLock
 targetState=EN
+winTitles=ahk_exe Code.exe|ahk_exe WeChat.exe
+matchMode=contains
 passThrough=false
 switchMethod=dll
 ```
@@ -138,6 +140,8 @@ switchMethod=dll
 enabled=true
 hotkey=Esc
 targetState=EN
+winTitles=ahk_exe WeChat.exe
+matchMode=contains
 passThrough=false
 switchMethod=dll
 sendAfterSwitch={Esc}
@@ -169,6 +173,8 @@ switchMethod=dll
 - `cnConversionMode`：可选；覆盖当前配置档切换到中文时使用的转换码。
 - `hotkey`：触发切换的 AHK 热键。
 - `targetState`：目标状态，支持 `CN`、`EN`、`TOGGLE`。
+- `winTitles`：可选；限制该热键只在多个指定活动窗口生效。用 `|` 分隔多个规则，例如 `ahk_exe Code.exe|ahk_exe WeChat.exe|ahk_exe Zed.exe`。留空时表示全局生效。
+- `matchMode`：可选；`winTitles` 中每条规则的匹配方式，支持 `contains`、`exact`、`startsWith`、`regex`，省略时默认 `contains`。
 - `passThrough`：是否保留按键原本作用。`true` 会让按键继续传递给系统或当前应用，`false` 会拦截该按键。
 - `sendAfterSwitch`：切换逻辑执行后主动发送的按键。可选，使用 AHK `Send` 语法，例如 `{Esc}`。需要先切输入法再保留原按键作用时，优先使用 `passThrough=false` 加 `sendAfterSwitch`。
 

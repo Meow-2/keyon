@@ -2,14 +2,16 @@
 ; 只保存热键、目标状态和是否透传原按键，不直接执行切换。
 class imeHotkeyRule {
   ; 初始化一条输入法快捷键规则。
-  ; targetState 支持 CN、EN、TOGGLE；sendAfterSwitch 用于在切换后主动补发原按键。
-  __New(name, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch) {
+  ; targetState 支持 CN、EN、TOGGLE；scopeWinTitles 支持把同一热键限定到多个 app。
+  __New(name, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeWinTitles, matchMode) {
     this.name := name
     this.hotkey := hotkey
     this.targetState := targetState
     this.passThrough := passThrough
     this.switchMethod := switchMethod
     this.sendAfterSwitch := sendAfterSwitch
+    this.scopeWinTitles := scopeWinTitles
+    this.matchMode := matchMode
   }
 }
 
@@ -53,6 +55,10 @@ class imeManager {
   ; 输入法快捷键触发入口。
   ; currentRule 会被继续传入，用于判断 passThrough、切换方式和切换后的补发按键。
   handleStateHotkey(currentRule, *) {
+    if !this.isHotkeyActiveForCurrentWindow(currentRule) {
+      return
+    }
+
     if this.canManageInputState() {
       this.switchToState(currentRule.targetState, currentRule)
     }
@@ -304,15 +310,64 @@ class imeManager {
       passThrough := this.config.readBool(sectionName, "passThrough", false)
       switchMethod := this.normalizeSwitchMethod(this.config.readText(sectionName, "switchMethod", this.switchMethod))
       sendAfterSwitch := this.config.readText(sectionName, "sendAfterSwitch")
+      scopeWinTitles := this.parseScopeWinTitles(sectionName)
+      matchMode := this.normalizeMatchMode(this.config.readText(sectionName, "matchMode", "contains"))
 
       if (hotkey = "" || targetState = "") {
         continue
       }
 
-      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch))
+      hotkeyRules.Push(imeHotkeyRule(sectionName, hotkey, targetState, passThrough, switchMethod, sendAfterSwitch, scopeWinTitles, matchMode))
     }
 
     return hotkeyRules
+  }
+
+  ; 判断单条输入法热键是否应在当前活动窗口生效。
+  ; 未配置作用域时保持全局行为；配置后任一窗口规则匹配即生效。
+  isHotkeyActiveForCurrentWindow(currentRule) {
+    if !IsObject(currentRule) || !IsObject(currentRule.scopeWinTitles) || currentRule.scopeWinTitles.Length = 0 {
+      return true
+    }
+
+    previousMatchMode := A_TitleMatchMode
+    SetTitleMatchMode(this.toAhkTitleMatchMode(currentRule.matchMode))
+
+    try {
+      for currentWinTitle in currentRule.scopeWinTitles {
+        if (currentWinTitle != "" && WinActive(currentWinTitle) != 0) {
+          return true
+        }
+      }
+
+      return false
+    } finally {
+      SetTitleMatchMode(previousMatchMode)
+    }
+  }
+
+  ; 解析单条热键的 app 作用域。
+  ; 只支持用 winTitles 通过分隔符声明多个窗口规则。
+  parseScopeWinTitles(sectionName) {
+    scopeWinTitles := []
+    multipleWinTitles := this.config.readText(sectionName, "winTitles")
+
+    normalizedListText := StrReplace(StrReplace(StrReplace(multipleWinTitles, "，", "|"), ",", "|"), ";", "|")
+    for currentWinTitle in StrSplit(normalizedListText, "|") {
+      this.pushScopeWinTitle(scopeWinTitles, currentWinTitle)
+    }
+
+    return scopeWinTitles
+  }
+
+  ; 向作用域列表追加单条窗口规则，并自动去重。
+  pushScopeWinTitle(scopeWinTitles, winTitle) {
+    normalizedWinTitle := Trim(winTitle)
+    if (normalizedWinTitle = "" || this.arrayHas(scopeWinTitles, normalizedWinTitle)) {
+      return
+    }
+
+    scopeWinTitles.Push(normalizedWinTitle)
   }
 
   ; 在输入法切换逻辑执行后主动补发按键。
@@ -386,6 +441,52 @@ class imeManager {
       default:
         return "dll"
     }
+  }
+
+  ; 统一配置里的窗口匹配方式。
+  ; 默认 contains 对 ahk_exe 和普通标题都更宽松，便于只给特定 app 生效。
+  normalizeMatchMode(matchMode) {
+    matchMode := StrLower(Trim(matchMode))
+
+    switch matchMode {
+      case "contains", "contain", "2", "":
+        return "contains"
+      case "exact", "3":
+        return "exact"
+      case "startswith", "prefix", "1":
+        return "startsWith"
+      case "regex", "regexp", "regular":
+        return "regex"
+      default:
+        return "contains"
+    }
+  }
+
+  ; 把配置里的 matchMode 转换成 AHK SetTitleMatchMode 可用值。
+  toAhkTitleMatchMode(matchMode) {
+    switch this.normalizeMatchMode(matchMode) {
+      case "contains":
+        return 2
+      case "exact":
+        return 3
+      case "startsWith":
+        return 1
+      case "regex":
+        return "RegEx"
+      default:
+        return 2
+    }
+  }
+
+  ; 判断数组中是否已有指定值。
+  arrayHas(values, expectedValue) {
+    for currentValue in values {
+      if (currentValue = expectedValue) {
+        return true
+      }
+    }
+
+    return false
   }
 
   ; 根据输入法配置档返回默认中文转换码。

@@ -242,6 +242,8 @@ checkTimeout=500
 enabled=true
 hotkey=CapsLock
 targetState=EN
+winTitles=ahk_exe Code.exe|ahk_exe WeChat.exe
+matchMode=contains
 passThrough=false
 switchMethod=dll
 sendAfterSwitch=
@@ -255,6 +257,8 @@ sendAfterSwitch=
 - `checkTimeout`：读取输入法状态的超时时间，单位毫秒。
 - `cnConversionMode`：可选；覆盖当前配置档切换到中文时使用的转换码。
 - `targetState`：快捷键触发后的目标状态，支持 `CN`、`EN`、`TOGGLE`。
+- `winTitles`：可选；限制该热键只在多个匹配的活动窗口生效，使用 `|` 分隔多个规则；留空时表示全局生效。
+- `matchMode`：可选；`winTitles` 中每条规则的匹配方式，支持 `contains`、`exact`、`startsWith`、`regex`，省略时默认 `contains`。
 - `passThrough`：是否让快捷键在触发切换后保留按键原本作用。
 - `sendAfterSwitch`：切换逻辑执行后主动发送的按键；适合需要先切输入法再保留原按键作用的场景，例如 `{Esc}`。
 
