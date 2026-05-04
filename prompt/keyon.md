@@ -14,15 +14,23 @@
 - 脚本版本：AutoHotkey v2，本次实现已在入口文件中声明 `#Requires AutoHotkey v2.0`。
 - 参考来源：MyKeymap 开源项目；应用窗口管理功能参考其 `ActivateOrRun`、`ActivateWindow`、`LoopRelatedWindows` 的设计思路，但本项目按自身规范重新实现，不直接照搬代码风格。
 
+## 当前已确认配置
+
+当前仓库已包含一组本机可用配置，真实启用状态以 `config/` 下 INI 文件为准：
+
+- 应用快捷键：`Win + M` 打开 Codex；`Win + P` 打开 zditor；`Win + O` 打开 Zed；`Win + Enter` 打开 Windows Terminal；`Win + Ctrl + Enter` 打开管理员 Windows Terminal；`Win + Shift + Enter` 打开 WSL；`Win + N` 打开 Zen Browser；`Win + U` 打开 DataGrip。
+- 输入法热键：`Esc` 在 Windows Terminal 中切到英文；`RAlt` 全局切换中英文。
+- 应用默认输入法状态：Windows Terminal 默认英文；`Weixin.exe`、`WXWork.exe`、`Codex.exe` 默认中文。
+- 工具类快捷键：`Win + X` 查看当前窗口和输入法信息；`Win + Q` 关闭当前窗口；`Win + J` / `Win + K` 使用系统窗口切换。
+- 按键映射：`config/keymap.ini` 当前没有启用未注释的映射规则。
+
 ## 待确认内容
 
-以下内容尚未确定，后续按实际需求补充：
+以下内容仍需按后续真实需求补充：
 
-- 快捷键清单。
-- 快捷键对应的应用、路径、进程名或窗口匹配规则。
-- 需要特殊呼出热键的后台应用，例如托盘应用。
-- 真实启用的输入法状态切换快捷键。
-- 真实启用的窗口与输入法信息查看快捷键。
+- 是否还有需要特殊呼出热键的后台或托盘应用。
+- 上述本机路径迁移到其他机器时的等价安装路径。
+
 ## 快捷键打开应用
 
 已确认目标：用快捷键管理应用的启动、呼出和同应用窗口切换。每个应用后续通过配置绑定一个快捷键。

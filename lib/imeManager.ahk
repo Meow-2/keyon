@@ -46,6 +46,7 @@ class imeManager {
     this.appDefaultFocusDelay := Max(0, this.config.readNumber("appDefaults", "focusDelay", 80))
     this.hotkeyRules := this.loadHotkeyRules()
     this.appDefaultRules := this.loadAppDefaultRules()
+    this.appDefaultRuleByProcessName := this.buildAppDefaultRuleIndex()
     this.lastAppDefaultProcessName := ""
     this.appDefaultChecking := false
     this.checkAppDefaultCallback := ObjBindMethod(this, "checkAppDefaultState")
@@ -372,7 +373,7 @@ class imeManager {
   ; 启动活动窗口监听轮询。
   ; InputTip 使用主循环检查进程名变化；这里用 SetTimer 保持本项目 manager 模式。
   startAppDefaultWatcher() {
-    if (!this.appDefaultsEnabled || this.appDefaultRules.Length = 0) {
+    if (!this.appDefaultsEnabled || this.appDefaultRuleByProcessName.Count = 0) {
       return 0
     }
 
@@ -440,21 +441,42 @@ class imeManager {
     }
   }
 
-  ; 查找当前进程命中的应用默认状态规则。
-  ; toEnglish 和 toChinese 如果都包含同一个进程，配置顺序固定为 toEnglish 优先。
-  findMatchingAppDefaultRule(processName) {
+  ; 为应用默认状态规则建立进程名索引，避免轮询时反复遍历所有配置项。
+  ; 如果同一进程同时出现在中英文列表里，保留先注册的规则，即 toEnglish 优先。
+  buildAppDefaultRuleIndex() {
+    appDefaultRuleByProcessName := Map()
+
     for currentRule in this.appDefaultRules {
-      if this.processNameMatchesAny(processName, currentRule.processNames) {
-        return currentRule
+      for currentProcessName in currentRule.processNames {
+        normalizedProcessName := this.normalizeProcessName(currentProcessName)
+        if (normalizedProcessName != "" && !appDefaultRuleByProcessName.Has(normalizedProcessName)) {
+          appDefaultRuleByProcessName[normalizedProcessName] := currentRule
+        }
       }
     }
 
-    return ""
+    return appDefaultRuleByProcessName
+  }
+
+  ; 查找当前进程命中的应用默认状态规则。
+  findMatchingAppDefaultRule(processName) {
+    normalizedProcessName := this.normalizeProcessName(processName)
+    if (normalizedProcessName = "" || !this.appDefaultRuleByProcessName.Has(normalizedProcessName)) {
+      return ""
+    }
+
+    return this.appDefaultRuleByProcessName[normalizedProcessName]
   }
 
   ; 判断两个进程名是否一致；进程名按 Windows 习惯做大小写不敏感匹配。
   isSameProcessName(leftProcessName, rightProcessName) {
-    return StrLower(Trim(leftProcessName)) = StrLower(Trim(rightProcessName))
+    return this.normalizeProcessName(leftProcessName) = this.normalizeProcessName(rightProcessName)
+  }
+
+  ; 统一进程名格式。
+  ; Windows 进程名大小写不敏感，集中规整可以减少不同匹配入口的重复处理。
+  normalizeProcessName(processName) {
+    return StrLower(Trim(processName))
   }
 
   ; 判断单条输入法热键是否应在当前活动窗口生效。
@@ -498,8 +520,13 @@ class imeManager {
 
   ; 判断当前进程名是否命中配置列表。
   processNameMatchesAny(processName, processNames) {
+    normalizedProcessName := this.normalizeProcessName(processName)
+    if (normalizedProcessName = "") {
+      return false
+    }
+
     for currentProcessName in processNames {
-      if this.isSameProcessName(processName, currentProcessName) {
+      if (normalizedProcessName = this.normalizeProcessName(currentProcessName)) {
         return true
       }
     }
@@ -561,8 +588,6 @@ class imeManager {
     }
   }
 
-
-
   ; 统一切换方式写法。
   ; 配置无效时回退到 dll，保证默认行为可预测。
   normalizeSwitchMethod(switchMethod) {
@@ -581,8 +606,6 @@ class imeManager {
         return "dll"
     }
   }
-
-
 
   ; 根据输入法配置档返回默认中文转换码。
   ; 微软拼音默认 1025，微信输入法默认 1；用户可用 cnConversionMode 覆盖。

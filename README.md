@@ -1,6 +1,6 @@
 # keyon
 
-`keyon` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现两类能力：应用窗口管理，以及输入法状态切换。
+`keyon` 是一个基于 AutoHotkey v2 的 Windows 快捷键工具。当前已实现应用窗口管理、输入法状态切换、窗口控制和按键映射能力。
 
 当前启用的快捷键以 `config/apps.ini`、`config/ime.ini`、`config/wintools.ini` 和 `config/keymap.ini` 为准。修改配置后重新运行或重载 `keyon.ahk`。
 
@@ -349,13 +349,32 @@ sendKeys=#1
 
 导入前建议先确认文件内容，并备份相关注册表项。需要回滚时，应删除或恢复对应注册表值，而不是重新运行 `keyon`。
 
+## 当前已启用配置
+
+当前仓库包含一组本机可用配置，实际以 `config/` 下 INI 文件为准：
+
+| 类型 | 当前启用内容 |
+| --- | --- |
+| 应用快捷键 | `Win + M` 打开 Codex；`Win + P` 打开 zditor；`Win + O` 打开 Zed；`Win + Enter` 打开 Windows Terminal；`Win + Ctrl + Enter` 打开管理员 Windows Terminal；`Win + Shift + Enter` 打开 WSL；`Win + N` 打开 Zen Browser；`Win + U` 打开 DataGrip。 |
+| 输入法热键 | `Esc` 在 Windows Terminal 中切到英文；`RAlt` 全局切换中英文。 |
+| 应用默认输入法状态 | Windows Terminal 默认英文；`Weixin.exe`、`WXWork.exe`、`Codex.exe` 默认中文。 |
+| 窗口工具 | `Win + X` 查看当前窗口和输入法信息；`Win + Q` 关闭当前窗口；`Win + J` / `Win + K` 使用系统窗口切换。 |
+| 按键映射 | `config/keymap.ini` 当前没有启用未注释的映射规则。 |
+
+## 待确认内容
+
+以下内容仍需按后续真实需求补充：
+
+- 是否还有需要特殊呼出热键的后台或托盘应用。
+- 当前本机路径迁移到其他机器时的等价安装路径。
+
 ## 当前限制
 
-- 默认配置没有启用任何真实应用。
+- `config/apps.ini` 中的部分 `target` 是当前用户本机路径，迁移到其他机器时需要按实际安装位置调整。
 - 托盘应用、虚拟桌面窗口和特殊 UWP 窗口可能需要额外的 `processName`、`wakeHotkey` 或匹配规则。
-- 按活动窗口自动切换输入法状态依赖当前窗口可被读取进程名、标题和输入法状态；部分游戏、沙盒窗口或特殊权限窗口可能无法稳定切换。
+- 按活动窗口自动切换输入法状态依赖当前窗口可被读取进程名和输入法状态；部分游戏、沙盒窗口或特殊权限窗口可能无法稳定切换。
 - 不同输入法对状态码和切换码的支持存在差异。如果 `dll` 不稳定，可尝试 `lShift`、`rShift` 或 `ctrlSpace`。
-- 工具类快捷键默认未启用，需要在 `config/wintools.ini` 中手动取消注释或新增配置。
+- 工具类快捷键已按当前配置启用；如果和系统或其他软件快捷键冲突，需要在 `config/wintools.ini` 中调整。
 
 ## 参考项目
 
