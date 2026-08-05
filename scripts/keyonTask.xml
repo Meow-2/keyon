@@ -1,10 +1,7 @@
-<?xml version="1.0" encoding="UTF-16" ?>
-<Task
-    version="1.4"
-    xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"
->
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Author>Legion</Author>
+    <Author>14085</Author>
     <URI>\keyon\keyon</URI>
   </RegistrationInfo>
   <Triggers>
@@ -14,7 +11,7 @@
   </Triggers>
   <Principals>
     <Principal id="Author">
-      <UserId>S-1-5-21-569056335-1738829758-2234721496-1001</UserId>
+      <UserId>S-1-5-21-772232695-3597535858-861442411-40597</UserId>
       <LogonType>InteractiveToken</LogonType>
       <RunLevel>HighestAvailable</RunLevel>
     </Principal>
@@ -46,8 +43,7 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command
-            >C:\Users\Legion\Desktop\project\keyon\scripts\..\keyon.exe</Command>
+      <Command>D:\project\keyon\scripts\..\keyon.exe</Command>
     </Exec>
   </Actions>
 </Task>
