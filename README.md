@@ -101,6 +101,19 @@ runAsAdmin=false
 - `waitSeconds`：启动或呼出应用后等待窗口出现的秒数。可选，省略时默认 `3`。应用启动较慢时可以调大，例如 `5` 或 `8`。
 - `runAsAdmin`：是否以管理员权限启动该应用。可选，省略时默认 `false`。由于 `keyon.exe` 通常以管理员权限运行，`false` 会通过普通权限 Explorer 代理启动，避免把浏览器、编辑器、终端等应用也带成管理员进程；只有确实需要管理权限的目标才设为 `true`。
 
+Microsoft Store / MSIX 应用不要使用带版本号的 `C:\Program Files\WindowsApps\...` 路径，因为应用更新后该目录会变化。应从 `Get-StartApps` 查询稳定的 AppID，并使用 `shell:AppsFolder\AppID`，例如 ChatGPT 可配置为：
+
+```ini
+[chatgpt]
+hotkey=#m
+winTitle=ahk_exe ChatGPT.exe
+target=shell:AppsFolder\OpenAI.Codex_2p2nqsd0c76g0!App
+processName=ChatGPT.exe
+runAsAdmin=false
+```
+
+如果本地绝对路径不存在，keyon 会显示非模态通知并结束本次启动，不会用错误对话框阻塞其他快捷键。
+
 `matchMode` 详细说明：
 
 |值 |含义 |

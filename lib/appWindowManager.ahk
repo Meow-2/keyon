@@ -306,7 +306,8 @@ class appWindowManager {
     try {
       this.runConfiguredTarget(currentRule, workingDir)
     } catch Error as err {
-      MsgBox("应用启动失败：" currentRule.name "`n" err.Message, "keyon")
+      OutputDebug("keyon: 应用启动失败：" currentRule.name "；" err.Message)
+      TrayTip(err.Message, "keyon：应用启动失败（" currentRule.name "）", "Iconx")
       return false
     }
 
@@ -320,6 +321,10 @@ class appWindowManager {
   ; 根据配置启动目标应用。
   ; runAsAdmin=false 时通过普通权限 Explorer 代理启动，避免管理员权限的 keyon 把子进程也带成管理员。
   runConfiguredTarget(currentRule, workingDir) {
+    if RegExMatch(currentRule.target, "i)^(?:[a-z]:\\|\\\\)") && !FileExist(currentRule.target) {
+      throw Error("找不到启动目标：" currentRule.target)
+    }
+
     if currentRule.runAsAdmin {
       runTarget := currentRule.target
       if (runTarget != "" && SubStr(runTarget, 1, 1) != '"' && InStr(runTarget, " ") && !RegExMatch(runTarget, "i)^[a-z][a-z0-9+.-]*:")) {

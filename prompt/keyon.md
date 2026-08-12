@@ -239,6 +239,10 @@ runAsAdmin=false
 - `waitSeconds`：启动或呼出后等待窗口出现的秒数。
 - `runAsAdmin`：是否以管理员权限启动目标应用，省略时默认 `false`；`false` 应尽量通过普通权限 Explorer 代理启动，避免管理员权限的 `keyon.exe` 把子进程也带成管理员。
 
+Microsoft Store / MSIX 应用应优先使用 `shell:AppsFolder\包族名!应用ID` 作为 `target`，不要直接引用包含版本号的 `C:\Program Files\WindowsApps\...` 安装路径。应用更新后版本目录会变化，而 AppsFolder 标识保持稳定。
+
+启动本地绝对路径前应先检查目标是否存在。目标无效时应显示非模态通知并立即结束当前热键处理，不能弹出会阻塞 AHK 热键线程的系统错误对话框。
+
 输入法状态切换配置位于 `config/ime.ini`。当前实际启用状态以该文件内容为准。
 
 ```ini
