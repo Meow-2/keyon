@@ -12,6 +12,13 @@ if %errorlevel% neq 0 (
 
 echo Compiling keyon...
 powershell -NoProfile -ExecutionPolicy Bypass -File "compile.ps1"
+set COMPILE_EXIT_CODE=%errorlevel%
 
+echo.
+if %COMPILE_EXIT_CODE% equ 0 (
+    echo Compile workflow completed successfully.
+) else (
+    echo Compile workflow failed with exit code %COMPILE_EXIT_CODE%.
+)
 pause
-exit /b
+exit /b %COMPILE_EXIT_CODE%

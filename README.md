@@ -333,9 +333,9 @@ sendKeys=#1
 `scripts\compile.bat` 会请求管理员权限，然后调用 `scripts\compile.ps1`。编译流程：
 
 1. 使用当前用户目录下的 Scoop AutoHotkey 路径：`%USERPROFILE%\scoop\apps\autohotkey\current\Compiler\Ahk2Exe.exe` 和 `%USERPROFILE%\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe`。
-2. 停止正在运行的 `keyon.exe`。
+2. 写入维护停止标记，并停止正在运行的 watchdog 和 `keyon.exe`。
 3. 将 `keyon.ahk` 编译为 `keyon.exe`。
-4. 编译成功后重新启动 `keyon.exe`。
+4. 编译成功后重新启动计划任务中的 watchdog；未安装计划任务时直接启动 watchdog。
 
 编译成功后，可以添加开机启动任务：
 
@@ -343,7 +343,7 @@ sendKeys=#1
 .\scripts\enableAutoStartup.bat
 ```
 
-该脚本会请求管理员权限，创建计划任务 `\keyon\keyon`，在用户登录时以 `HighestAvailable` 权限运行 `keyon.exe`。
+该脚本会请求管理员权限，创建计划任务 `\keyon\keyon`，在用户登录时以 `HighestAvailable` 权限隐藏运行 `scripts/watchdog.ps1`。watchdog 负责启动 `keyon.exe`，记录退出码，并在异常退出后限流重启。
 
 移除开机启动任务：
 
@@ -352,6 +352,25 @@ sendKeys=#1
 ```
 
 `disableAutoStartup.bat` 同样会在需要时请求管理员权限。注意：`enableAutoStartup.bat` 依赖已存在的 `keyon.exe`，因此应先运行 `scripts\compile.bat`。
+
+## 运行日志与主动退出
+
+运行日志位于 `%LOCALAPPDATA%\keyon\logs\`：
+
+- `keyon.log` 记录启动、热键注册完成、未捕获错误和退出原因。
+- `watchdog.log` 记录 `keyon.exe` 的 PID、退出码、运行时长和自动重启决定。
+- 日志达到 1 MiB 后自动轮转，最多保留 5 个历史文件。
+
+从托盘菜单选择“退出 Keyon”会执行受控退出：`keyon.exe` 写入一次性停止标记，watchdog 随后退出，不会在当前登录会话中重新拉起程序。停止标记只在短时间内有效，因此下次登录 Windows 时计划任务仍会正常启动 Keyon。
+
+查看最近日志：
+
+```ps1
+Get-Content "$env:LOCALAPPDATA\keyon\logs\keyon.log" -Tail 50
+Get-Content "$env:LOCALAPPDATA\keyon\logs\watchdog.log" -Tail 50
+```
+
+进程内日志无法捕获任务管理器强制结束或原生崩溃本身，但 watchdog 会记录进程退出及退出码。若需要进一步分析原生崩溃，可另外启用 Windows Error Reporting LocalDumps。
 
 ## 注册表片段
 

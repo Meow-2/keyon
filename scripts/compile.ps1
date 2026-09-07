@@ -31,6 +31,11 @@ if (-not (Test-IsAdmin)) {
 $projectDir = Split-Path -Parent $PSScriptRoot
 $sourceFile = Join-Path $projectDir "keyon.ahk"
 $outputFile = Join-Path $projectDir "keyon.exe"
+$watchdogFile = Join-Path $PSScriptRoot "watchdog.ps1"
+$dataDirectory = Join-Path $env:LOCALAPPDATA "keyon"
+$maintenancePath = Join-Path $dataDirectory "maintenance-requested"
+$stopRequestPath = Join-Path $dataDirectory "stop-requested"
+$taskName = "\keyon\keyon"
 $processNames = @("keyon", "MuxKey", "mine-key", "mineKey")
 
 $scoopRoot = Join-Path $env:USERPROFILE "scoop"
@@ -57,6 +62,37 @@ Write-Host "Base file: $ahkBase" -ForegroundColor Green
 Write-Host "Source file: $sourceFile" -ForegroundColor Green
 Write-Host "Output file: $outputFile" -ForegroundColor Green
 
+Write-Host "Preparing maintenance mode..." -ForegroundColor Cyan
+New-Item -ItemType Directory -Path $dataDirectory -Force | Out-Null
+Remove-Item $stopRequestPath -Force -ErrorAction SilentlyContinue
+Set-Content -Path $maintenancePath -Value "compile" -Encoding utf8
+
+Write-Host "Checking scheduled task..." -ForegroundColor Cyan
+$taskXmlText = & schtasks.exe /query /tn $taskName /xml ONE 2>$null
+$scheduledTaskExists = $LASTEXITCODE -eq 0
+$scheduledTaskUsesWatchdog = $false
+if ($scheduledTaskExists) {
+    try {
+        [xml] $taskXml = $taskXmlText -join [Environment]::NewLine
+        $taskAction = $taskXml.Task.Actions.Exec
+        $scheduledTaskUsesWatchdog = $taskAction.Command -match '(?i)powershell(?:\.exe)?$' -and $taskAction.Arguments -match '(?i)watchdog\.ps1'
+    }
+    catch {
+        Write-Host "Warning: failed to inspect scheduled task action; it will be treated as an old task." -ForegroundColor Yellow
+    }
+}
+
+if ($scheduledTaskExists) {
+    Write-Host "Stopping scheduled watchdog..." -ForegroundColor Cyan
+    & schtasks.exe /end /tn $taskName *> $null
+}
+
+$watchdogProcesses = Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -match 'watchdog\.ps1' }
+foreach ($watchdogProcess in $watchdogProcesses) {
+    Stop-Process -Id $watchdogProcess.ProcessId -Force -ErrorAction SilentlyContinue
+}
+
 foreach ($processName in $processNames) {
     $processes = Get-Process -Name $processName -ErrorAction SilentlyContinue
     if ($processes) {
@@ -76,10 +112,11 @@ try {
     $processInfo.RedirectStandardError = $true
 
     $process = [System.Diagnostics.Process]::Start($processInfo)
+    $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+    $stderrTask = $process.StandardError.ReadToEndAsync()
     $process.WaitForExit()
-
-    $stdout = $process.StandardOutput.ReadToEnd()
-    $stderr = $process.StandardError.ReadToEnd()
+    $stdout = $stdoutTask.GetAwaiter().GetResult()
+    $stderr = $stderrTask.GetAwaiter().GetResult()
 
     if ($process.ExitCode -ne 0) {
         Write-Host "Compilation failed. Exit code: $($process.ExitCode)" -ForegroundColor Red
@@ -97,12 +134,32 @@ catch {
 
 Write-Host "Starting keyon.exe..." -ForegroundColor Cyan
 try {
-    Start-Process -FilePath $outputFile -WorkingDirectory $projectDir
+    Remove-Item $maintenancePath -Force -ErrorAction SilentlyContinue
+    if ($scheduledTaskExists -and $scheduledTaskUsesWatchdog) {
+        & schtasks.exe /run /tn $taskName *> $null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to start scheduled task $taskName."
+        }
+    }
+    else {
+        if ($scheduledTaskExists) {
+            Write-Host "Warning: the scheduled task still starts keyon.exe directly." -ForegroundColor Yellow
+            Write-Host "Run scripts\enableAutoStartup.bat once to migrate it to watchdog.ps1." -ForegroundColor Yellow
+        }
+        Start-Process powershell.exe -ArgumentList @(
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle", "Hidden",
+            "-ExecutionPolicy", "Bypass",
+            "-File", "`"$watchdogFile`""
+        ) -WorkingDirectory $projectDir
+    }
     Start-Sleep -Milliseconds 500
-    Write-Host "keyon started." -ForegroundColor Green
+    Write-Host "keyon watchdog started." -ForegroundColor Green
 }
 catch {
-    Write-Host "Warning: failed to start. Please run manually: $outputFile" -ForegroundColor Yellow
+    Remove-Item $maintenancePath -Force -ErrorAction SilentlyContinue
+    Write-Host "Warning: failed to start watchdog. Please run manually: $watchdogFile" -ForegroundColor Yellow
 }
 
 Write-Host "Done." -ForegroundColor Green

@@ -43,7 +43,9 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>D:\project\keyon\scripts\..\keyon.exe</Command>
+      <Command>powershell.exe</Command>
+      <Arguments>-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "D:\project\keyon\scripts\watchdog.ps1"</Arguments>
+      <WorkingDirectory>D:\project\keyon\scripts\..</WorkingDirectory>
     </Exec>
   </Actions>
 </Task>
