@@ -135,6 +135,8 @@
 ├── scripts/
 │   ├── compile.bat          # 构建入口，负责提权后调用同目录 compile.ps1
 │   ├── compile.ps1          # 编译 keyon.ahk 为 keyon.exe
+│   ├── watchdog.bat         # 手动启动 watchdog 的双击入口
+│   ├── watchdog.ps1         # 监控 keyon.exe 并记录退出、限流重启
 │   ├── enableAutoStartup.bat # 添加开机计划任务
 │   └── disableAutoStartup.bat # 删除开机计划任务
 ├── registry/
@@ -170,6 +172,8 @@ PowerShell 中运行：
 
 - `scripts/compile.bat`：构建入口，请求管理员权限后调用同目录 `compile.ps1`。
 - `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程和 watchdog，编译 `keyon.ahk` 为 `keyon.exe`，并在成功后重启 watchdog。
+- `scripts/watchdog.bat`：供用户双击或手动执行的 watchdog 启动入口，以隐藏窗口运行 `scripts/watchdog.ps1`。
+- `scripts/watchdog.ps1`：单实例监控 `keyon.exe`，记录退出并按限流策略重启。
 - `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建运行 `scripts/watchdog.ps1` 的计划任务 `\keyon\keyon`。
 - `scripts/disableAutoStartup.bat`：请求管理员权限，删除计划任务 `\keyon\keyon`。
 

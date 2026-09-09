@@ -2,6 +2,20 @@ param(
     [switch] $DiagnosticCheck
 )
 
+trap {
+    try {
+        $fallbackLogDirectory = Join-Path $env:LOCALAPPDATA "keyon\logs"
+        $fallbackLogPath = Join-Path $fallbackLogDirectory "watchdog.log"
+        $message = $_.Exception.Message.Replace("`r", " ").Replace("`n", " ")
+        New-Item -ItemType Directory -Path $fallbackLogDirectory -Force | Out-Null
+        $line = "{0}`tlevel=ERROR`tevent=watchdog_unhandled_error`tpid={1}`tmessage={2}" -f (Get-Date -Format "yyyy-MM-dd'T'HH:mm:ss"), $PID, $message
+        Add-Content -Path $fallbackLogPath -Value $line -Encoding utf8
+    }
+    catch {
+    }
+    exit 10
+}
+
 $ErrorActionPreference = "Stop"
 
 $projectDir = Split-Path -Parent $PSScriptRoot
@@ -17,6 +31,9 @@ $restartWindow = [TimeSpan]::FromMinutes(10)
 $maxRestarts = 5
 $restartDelays = @(2, 10, 30, 60)
 $restartTimes = [System.Collections.Generic.List[datetime]]::new()
+$watchdogMutexName = "Local\keyon-watchdog"
+$watchdogMutexCreated = $false
+$watchdogMutex = [System.Threading.Mutex]::new($true, $watchdogMutexName, [ref] $watchdogMutexCreated)
 
 function Rotate-Log {
     if (-not (Test-Path $logPath) -or (Get-Item $logPath).Length -lt $maxLogSize) {
@@ -70,6 +87,12 @@ function Test-AndRemoveMarker {
     $markerAge = (Get-Date) - (Get-Item $Path).LastWriteTime
     Remove-Item $Path -Force -ErrorAction SilentlyContinue
     return $markerAge.TotalSeconds -le $MaxAgeSeconds
+}
+
+if (-not $watchdogMutexCreated) {
+    Write-WatchdogLog -Level "INFO" -EventName "watchdog_already_running"
+    $watchdogMutex.Dispose()
+    exit 0
 }
 
 Write-WatchdogLog -Level "INFO" -EventName "watchdog_start" -Details "diagnosticCheck=$DiagnosticCheck"

@@ -345,6 +345,14 @@ sendKeys=#1
 
 该脚本会请求管理员权限，创建计划任务 `\keyon\keyon`，在用户登录时以 `HighestAvailable` 权限隐藏运行 `scripts/watchdog.ps1`。watchdog 负责启动 `keyon.exe`，记录退出码，并在异常退出后限流重启。
 
+需要在当前会话中手动启动时，可以双击或运行：
+
+```ps1
+.\scripts\watchdog.bat
+```
+
+该入口会隐藏 PowerShell 窗口并启动 watchdog。watchdog 有单实例保护，重复运行不会创建多个监控进程。
+
 移除开机启动任务：
 
 ```ps1
