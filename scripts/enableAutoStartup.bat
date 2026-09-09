@@ -51,6 +51,7 @@ echo     ^<URI^>%TASK_FOLDER%\%TASK_NAME%^</URI^>
 echo   ^</RegistrationInfo^>
 echo   ^<Triggers^>
 echo     ^<LogonTrigger^>
+echo       ^<Delay^>PT15S^</Delay^>
 echo       ^<Enabled^>true^</Enabled^>
 echo     ^</LogonTrigger^>
 echo   ^</Triggers^>
@@ -66,7 +67,7 @@ echo     ^<MultipleInstancesPolicy^>IgnoreNew^</MultipleInstancesPolicy^>
 echo     ^<DisallowStartIfOnBatteries^>false^</DisallowStartIfOnBatteries^>
 echo     ^<StopIfGoingOnBatteries^>false^</StopIfGoingOnBatteries^>
 echo     ^<AllowHardTerminate^>true^</AllowHardTerminate^>
-echo     ^<StartWhenAvailable^>false^</StartWhenAvailable^>
+echo     ^<StartWhenAvailable^>true^</StartWhenAvailable^>
 echo     ^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>
 echo     ^<IdleSettings^>
 echo       ^<StopOnIdleEnd^>true^</StopOnIdleEnd^>
