@@ -14,7 +14,6 @@ if %errorlevel% neq 0 (
 set TASK_FOLDER=\keyon
 set TASK_NAME=keyon
 set EXE_PATH=%~dp0..\keyon.exe
-set WATCHDOG_PATH=%~dp0watchdog.ps1
 set XML_FILE=%~dp0keyonTask.xml
 
 echo.
@@ -23,12 +22,6 @@ echo ===== Installing keyon Task =====
 if not exist "%EXE_PATH%" (
     echo keyon.exe not found at "%EXE_PATH%"
     echo Please run scripts\compile.bat first.
-    pause
-    exit /b 1
-)
-
-if not exist "%WATCHDOG_PATH%" (
-    echo watchdog.ps1 not found at "%WATCHDOG_PATH%"
     pause
     exit /b 1
 )
@@ -51,7 +44,6 @@ echo     ^<URI^>%TASK_FOLDER%\%TASK_NAME%^</URI^>
 echo   ^</RegistrationInfo^>
 echo   ^<Triggers^>
 echo     ^<LogonTrigger^>
-echo       ^<Delay^>PT15S^</Delay^>
 echo       ^<Enabled^>true^</Enabled^>
 echo     ^</LogonTrigger^>
 echo   ^</Triggers^>
@@ -67,7 +59,7 @@ echo     ^<MultipleInstancesPolicy^>IgnoreNew^</MultipleInstancesPolicy^>
 echo     ^<DisallowStartIfOnBatteries^>false^</DisallowStartIfOnBatteries^>
 echo     ^<StopIfGoingOnBatteries^>false^</StopIfGoingOnBatteries^>
 echo     ^<AllowHardTerminate^>true^</AllowHardTerminate^>
-echo     ^<StartWhenAvailable^>true^</StartWhenAvailable^>
+echo     ^<StartWhenAvailable^>false^</StartWhenAvailable^>
 echo     ^<RunOnlyIfNetworkAvailable^>false^</RunOnlyIfNetworkAvailable^>
 echo     ^<IdleSettings^>
 echo       ^<StopOnIdleEnd^>true^</StopOnIdleEnd^>
@@ -89,9 +81,7 @@ echo     ^</RestartOnFailure^>
 echo   ^</Settings^>
 echo   ^<Actions Context="Author"^>
 echo     ^<Exec^>
-echo       ^<Command^>powershell.exe^</Command^>
-echo       ^<Arguments^>-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "%WATCHDOG_PATH%"^</Arguments^>
-echo       ^<WorkingDirectory^>%~dp0..^</WorkingDirectory^>
+echo       ^<Command^>%EXE_PATH%^</Command^>
 echo     ^</Exec^>
 echo   ^</Actions^>
 echo ^</Task^>
@@ -101,7 +91,6 @@ schtasks /create /tn "%TASK_FOLDER%\%TASK_NAME%" /xml "%XML_FILE%" /f
 
 if %errorlevel%==0 (
     echo keyon installed successfully in folder %TASK_FOLDER%.
-    schtasks /run /tn "%TASK_FOLDER%\%TASK_NAME%" >nul
 ) else (
     echo Failed to install keyon.
 )

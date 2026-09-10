@@ -6,7 +6,6 @@
   </RegistrationInfo>
   <Triggers>
     <LogonTrigger>
-      <Delay>PT15S</Delay>
       <Enabled>true</Enabled>
     </LogonTrigger>
   </Triggers>
@@ -22,7 +21,7 @@
     <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
     <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
     <AllowHardTerminate>true</AllowHardTerminate>
-    <StartWhenAvailable>true</StartWhenAvailable>
+    <StartWhenAvailable>false</StartWhenAvailable>
     <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
     <IdleSettings>
       <StopOnIdleEnd>true</StopOnIdleEnd>
@@ -44,9 +43,7 @@
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>powershell.exe</Command>
-      <Arguments>-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File "D:\project\keyon\scripts\watchdog.ps1"</Arguments>
-      <WorkingDirectory>D:\project\keyon\scripts\..</WorkingDirectory>
+      <Command>D:\project\keyon\scripts\..\keyon.exe</Command>
     </Exec>
   </Actions>
 </Task>

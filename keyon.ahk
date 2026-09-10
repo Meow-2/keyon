@@ -1,7 +1,6 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-#Include lib\diagnosticLogger.ahk
 #Include lib\configReader.ahk
 #Include lib\windowHelper.ahk
 #Include lib\appWindowManager.ahk
@@ -14,16 +13,6 @@ SetWorkingDir(A_ScriptDir)
 SetTitleMatchMode(2)
 SetWinDelay(0)
 Persistent(true)
-
-diagnosticLogger.initialize()
-
-if (A_Args.Length && A_Args[1] = "--diagnostic-check") {
-  diagnosticLogger.write("INFO", "diagnostic_check")
-  ExitApp(0)
-}
-
-A_TrayMenu.Add()
-A_TrayMenu.Add("退出 Keyon", exitKeyon)
 
 configPath := A_ScriptDir "\config\apps.ini"
 manager := appWindowManager(configPath)
@@ -44,15 +33,8 @@ registeredImeCount := inputMethodManager.registerHotkeys()
 registeredInfoCount := currentInfoManager.registerHotkeys()
 registeredKeyMapCount := currentKeyMapManager.registerHotkeys()
 registeredWindowControlCount := currentWindowControlManager.registerHotkeys()
-totalRegisteredCount := registeredCount + registeredImeCount + registeredInfoCount + registeredKeyMapCount + registeredWindowControlCount
-diagnosticLogger.markReady(totalRegisteredCount)
 
-if (totalRegisteredCount = 0) {
+if (registeredCount = 0 && registeredImeCount = 0 && registeredInfoCount = 0 && registeredKeyMapCount = 0 && registeredWindowControlCount = 0) {
   ; 没有配置有效快捷键时仍保持脚本运行，方便用户编辑配置后手动重载。
   OutputDebug("keyon: 没有启用任何快捷键。")
-}
-
-exitKeyon(*) {
-  diagnosticLogger.requestStop("user")
-  ExitApp(0)
 }

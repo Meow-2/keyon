@@ -135,8 +135,6 @@
 ├── scripts/
 │   ├── compile.bat          # 构建入口，负责提权后调用同目录 compile.ps1
 │   ├── compile.ps1          # 编译 keyon.ahk 为 keyon.exe
-│   ├── watchdog.bat         # 手动启动 watchdog 的双击入口
-│   ├── watchdog.ps1         # 监控 keyon.exe 并记录退出、限流重启
 │   ├── enableAutoStartup.bat # 添加开机计划任务
 │   └── disableAutoStartup.bat # 删除开机计划任务
 ├── registry/
@@ -171,10 +169,8 @@ PowerShell 中运行：
 当前脚本：
 
 - `scripts/compile.bat`：构建入口，请求管理员权限后调用同目录 `compile.ps1`。
-- `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程和 watchdog，编译 `keyon.ahk` 为 `keyon.exe`，并在成功后重启 watchdog。
-- `scripts/watchdog.bat`：供用户双击或手动执行的 watchdog 启动入口，以隐藏窗口运行 `scripts/watchdog.ps1`。
-- `scripts/watchdog.ps1`：单实例监控 `keyon.exe`，记录退出并按限流策略重启。
-- `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建运行 `scripts/watchdog.ps1` 的计划任务 `\keyon\keyon`。
+- `scripts/compile.ps1`：使用当前用户目录下的 Scoop AutoHotkey v2 编译器路径，停止旧进程，编译 `keyon.ahk` 为 `keyon.exe`，并在成功后重启。
+- `scripts/enableAutoStartup.bat`：请求管理员权限，生成计划任务 XML，并创建计划任务 `\keyon\keyon`。
 - `scripts/disableAutoStartup.bat`：请求管理员权限，删除计划任务 `\keyon\keyon`。
 
 构建命令：
@@ -196,24 +192,6 @@ PowerShell 中运行：
 ```
 
 `enableAutoStartup.bat` 依赖 `keyon.exe` 已存在，因此应先执行构建。开机任务使用 `HighestAvailable`，所以添加和移除任务时需要管理员权限。
-
-编译脚本使用 Windows 原生 `schtasks.exe` 查询、停止和启动计划任务，避免 PowerShell `ScheduledTasks` 模块首次加载造成明显等待。如果发现已有任务仍直接运行 `keyon.exe`，编译脚本不启动该旧任务，而是临时启动 watchdog 并提示重新运行 `enableAutoStartup.bat` 完成任务迁移。
-
-## 诊断日志与进程恢复
-
-`keyon` 必须把运行日志写入 `%LOCALAPPDATA%\keyon\logs\`，避免进程退出后丢失诊断信息：
-
-- `keyon.log`：记录进程启动、就绪、未捕获错误和退出原因。
-- `watchdog.log`：记录 `keyon.exe` 的启动、退出码、运行时长和自动重启决定。
-- 单个日志达到 1 MiB 时轮转，最多保留 5 个历史文件。
-- 默认不记录窗口标题、命令行参数和完整应用路径，避免把用户内容写入日志。
-- 未捕获错误写入日志并通过托盘通知提示，不显示可能阻塞无人值守运行的错误对话框。
-
-开机计划任务启动 `scripts/watchdog.ps1`，由 watchdog 启动并监控 `keyon.exe`。异常退出后采用递增延迟重启，10 分钟内最多重启 5 次，超过限制后停止重启并保留日志。
-
-用户从托盘菜单选择“退出 Keyon”时，程序写入一次性正常停止标记。watchdog 读取并删除该标记后退出，不自动重启 `keyon.exe`；下次用户登录或显式启动计划任务时仍可正常启动。编译流程使用维护停止标记关闭旧实例，编译成功后重新启动 watchdog。
-
-进程内日志不能覆盖 `Stop-Process -Force`、任务管理器结束任务、加载期错误或原生崩溃；这些场景由 watchdog 的退出记录补充。Windows Error Reporting 崩溃转储属于可选的系统级诊断能力，不由默认安装脚本自动修改注册表。
 
 ## 注册表片段
 

@@ -12,7 +12,6 @@ set TASK_NAME=keyon
 echo.
 echo ===== Uninstalling keyon Task =====
 
-schtasks /end /tn "%TASK_FOLDER%\%TASK_NAME%" >nul 2>&1
 schtasks /delete /tn "%TASK_FOLDER%\%TASK_NAME%" /f
 
 if %errorlevel%==0 (
