@@ -88,7 +88,7 @@
 当前查看内容：
 
 - 活动窗口标题、进程名、进程 ID、窗口类名、窗口句柄。
-- 可用于 `apps.ini` 的推荐配置：`winTitle=ahk_exe ...`、`target=...`、`processName=...`。
+- 可用于 `apps.ini` 的推荐配置：`winTitle=ahk_exe ...`、`target=...`、`processName=...`；用户目录下的 `target` 优先使用 `%LOCALAPPDATA%` 或 `%USERPROFILE%`，避免复制出本机用户名。
 - 可用于 `apps.ini` 的备用 `winTitle` 写法：`winTitle=ahk_class ...`、`winTitle=ahk_id ...`。
 - 活动窗口位置和尺寸。
 - 下方测试输入框的输入法状态：`CN` 或 `EN`。
@@ -255,6 +255,7 @@ runAsAdmin=false
 - `winTitle`：AHK 窗口匹配表达式，用于查找和聚焦窗口。
 - `matchMode`：`winTitle` 的匹配方式，支持 `contains`、`exact`、`startsWith`、`regex`，省略时默认 `contains`。
 - `target`：应用启动命令、可执行文件、快捷方式、目录或 URI。
+- `target`、`args`、`workingDir` 支持 Windows `%变量名%` 环境变量写法；读取规则时先通过系统接口展开，再执行路径检查和启动。例如 `%USERPROFILE%\scoop\apps\obsidian\current\Obsidian.exe` 和 `%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe`。
 - `processName`：可选；用于判断后台进程是否已存在。
 - `wakeHotkey`：可选；用于呼出托盘或后台应用。
 - `detectHidden`：是否额外枚举隐藏窗口。

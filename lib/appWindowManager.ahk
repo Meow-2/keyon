@@ -82,7 +82,7 @@ class appWindowManager {
 
       hotkey := this.config.readText(sectionName, "hotkey")
       winTitle := this.config.readText(sectionName, "winTitle")
-      target := this.config.readText(sectionName, "target")
+      target := this.config.readExpandedText(sectionName, "target")
 
       if (hotkey = "" || (winTitle = "" && target = "")) {
         continue
@@ -94,8 +94,8 @@ class appWindowManager {
         winTitle,
         this.normalizeMatchMode(this.config.readText(sectionName, "matchMode", "contains")),
         target,
-        this.config.readText(sectionName, "args"),
-        this.config.readText(sectionName, "workingDir"),
+        this.config.readExpandedText(sectionName, "args"),
+        this.config.readExpandedText(sectionName, "workingDir"),
         this.config.readText(sectionName, "processName"),
         this.config.readText(sectionName, "wakeHotkey"),
         this.config.readBool(sectionName, "detectHidden", false),

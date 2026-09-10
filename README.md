@@ -92,9 +92,9 @@ runAsAdmin=false
 - `hotkey`：触发该应用动作的快捷键。必填。AHK 热键语法中，`#` 表示 Win，`!` 表示 Alt，`^` 表示 Ctrl，`+` 表示 Shift，例如 `#!n` 表示 `Win + Alt + N`。
 - `winTitle`：用来查找已有窗口的 AHK WinTitle 表达式。强烈建议填写，否则程序无法判断窗口是否已经存在，也无法进行窗口切换。常用写法有 `ahk_exe notepad.exe`、`ahk_class CabinetWClass`、窗口标题的一部分。
 - `matchMode`：`winTitle` 的匹配方式。可选，省略时默认 `contains`。可用值为 `contains`、`exact`、`startsWith`、`regex`。
-- `target`：应用不存在时要运行的启动命令。强烈建议填写，否则只能激活已有窗口，不能启动应用。可以是 exe、快捷方式、目录、URL、`shell:` 链接或 `ms-settings:` 链接。
-- `args`：启动参数。可选，多数应用可以留空。适合给编辑器传入目录或文件路径。
-- `workingDir`：启动应用时使用的工作目录。可选，多数应用可以留空。
+- `target`：应用不存在时要运行的启动命令。强烈建议填写，否则只能激活已有窗口，不能启动应用。可以是 exe、快捷方式、目录、URL、`shell:` 链接或 `ms-settings:` 链接，并支持 `%USERPROFILE%`、`%LOCALAPPDATA%` 等 Windows 环境变量。
+- `args`：启动参数。可选，多数应用可以留空。适合给编辑器传入目录或文件路径，支持 Windows 环境变量。
+- `workingDir`：启动应用时使用的工作目录。可选，多数应用可以留空，支持 Windows 环境变量。
 - `processName`：后台进程名。可选，主要用于托盘应用或后台应用。当应用没有普通窗口但进程仍存在时，可配合 `wakeHotkey` 呼出窗口。
 - `wakeHotkey`：应用自己的呼出快捷键。可选，主要用于微信、QQ 等托盘应用。例如 `^!w` 表示 `Ctrl + Alt + W`。
 - `detectHidden`：是否额外查找隐藏窗口。可选，省略时默认 `false`。普通应用不建议开启，只有窗口被隐藏且普通查找找不到时再设为 `true`。
@@ -110,6 +110,13 @@ winTitle=ahk_exe ChatGPT.exe
 target=shell:AppsFolder\OpenAI.Codex_2p2nqsd0c76g0!App
 processName=ChatGPT.exe
 runAsAdmin=false
+```
+
+本机路径建议用 Windows 环境变量避免硬编码用户名；Scoop 应用同时建议使用稳定的 `current` 目录，例如：
+
+```ini
+target=%USERPROFILE%\scoop\apps\obsidian\current\Obsidian.exe
+target=%LOCALAPPDATA%\Programs\Microsoft VS Code\Code.exe
 ```
 
 如果本地绝对路径不存在，keyon 会显示非模态通知并结束本次启动，不会用错误对话框阻塞其他快捷键。
@@ -253,7 +260,7 @@ copyToClipboard=true
 触发后会显示：
 
 - 当前活动窗口标题、进程名、进程 ID、窗口类名、窗口句柄。
-- 可直接参考的推荐配置：`winTitle=ahk_exe ...`、`target=...`、`processName=...`。
+- 可直接参考的推荐配置：`winTitle=ahk_exe ...`、`target=...`、`processName=...`；用户目录下的目标路径会优先写成 `%LOCALAPPDATA%` 或 `%USERPROFILE%` 形式。
 - 可手动复制的备用 `winTitle` 写法：`winTitle=ahk_class ...` 和 `winTitle=ahk_id ...`。
 - 启用 `copyToClipboard` 时，会自动复制 `winTitle=...`、`target=...`、`processName=...` 三行，方便直接粘贴到 `apps.ini`。
 - 当前窗口位置、尺寸和最大化/最小化状态。

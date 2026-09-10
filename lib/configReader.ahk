@@ -40,6 +40,28 @@ class configReader {
     }
   }
 
+  ; 读取文本并展开 Windows %变量名% 环境变量。
+  ; 只应由路径、参数等明确允许环境变量的配置字段调用。
+  readExpandedText(sectionName, keyName, defaultValue := "") {
+    value := this.readText(sectionName, keyName, defaultValue)
+    if (value = "" || !InStr(value, "%")) {
+      return value
+    }
+
+    try {
+      requiredChars := DllCall("ExpandEnvironmentStringsW", "str", value, "ptr", 0, "uint", 0, "uint")
+      if !requiredChars {
+        return value
+      }
+
+      expandedBuffer := Buffer(requiredChars * 2, 0)
+      writtenChars := DllCall("ExpandEnvironmentStringsW", "str", value, "ptr", expandedBuffer, "uint", requiredChars, "uint")
+      return writtenChars ? StrGet(expandedBuffer) : value
+    } catch Error {
+      return value
+    }
+  }
+
   ; 读取 INI 布尔字段。
   ; 支持 1/true/yes/on 作为 true，其余值按 false 处理。
   readBool(sectionName, keyName, defaultValue := false) {

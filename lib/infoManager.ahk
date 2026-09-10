@@ -253,13 +253,23 @@ class infoManager {
   }
 
   ; 生成 target 推荐值。
-  ; 完整路径更适合启动指定应用；如果 Windows 拒绝读取进程路径，则退回到进程名。
+  ; 完整路径更适合启动指定应用；用户目录路径优先转换为环境变量写法，读取失败时退回进程名。
   getTargetRecommendation(processPath, processName) {
     if (processPath != "") {
-      return processPath
+      portablePath := this.replacePathPrefix(processPath, EnvGet("LOCALAPPDATA"), "%LOCALAPPDATA%")
+      return this.replacePathPrefix(portablePath, EnvGet("USERPROFILE"), "%USERPROFILE%")
     }
 
     return processName
+  }
+
+  ; 仅替换完整路径开头，避免误改文件名或后续目录中碰巧出现的相同文本。
+  replacePathPrefix(path, prefix, replacement) {
+    if (prefix = "" || StrLower(SubStr(path, 1, StrLen(prefix))) != StrLower(prefix)) {
+      return path
+    }
+
+    return replacement SubStr(path, StrLen(prefix) + 1)
   }
 
   ; 获取窗口标题；失败时返回空字符串，避免诊断弹窗本身报错。
