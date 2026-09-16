@@ -1,4 +1,4 @@
-# Compile keyon.ahk, stop old process before compiling, then restart.
+﻿# 编译 keyon.ahk：停止旧进程，编译成功后更新开始菜单快捷方式并重新启动。
 
 $ErrorActionPreference = "Stop"
 
@@ -93,6 +93,30 @@ try {
 catch {
     Write-Host "Compilation error: $_" -ForegroundColor Red
     exit 1
+}
+
+# uTools 会索引开始菜单中的快捷方式；使用系统目录接口兼容用户目录重定向。
+# 每次编译覆盖同名链接，使项目移动后再次编译即可更新目标路径。
+try {
+    $programsDir = [Environment]::GetFolderPath([Environment+SpecialFolder]::Programs)
+    if ([string]::IsNullOrWhiteSpace($programsDir)) {
+        throw "Cannot resolve the current user's Start Menu Programs folder."
+    }
+    New-Item -ItemType Directory -Path $programsDir -Force | Out-Null
+    $shortcutPath = Join-Path $programsDir "Keyon.lnk"
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($shortcutPath)
+    $shortcut.TargetPath = $outputFile
+    $shortcut.WorkingDirectory = $projectDir
+    $shortcut.Arguments = ""
+    $shortcut.IconLocation = "$outputFile,0"
+    $shortcut.Description = "Keyon"
+    $shortcut.Save()
+    Write-Host "Start Menu shortcut updated: $shortcutPath" -ForegroundColor Green
+}
+catch {
+    # 快捷方式创建失败不影响已生成的程序继续启动，但需明确提示用户。
+    Write-Warning "Failed to update the Start Menu shortcut: $_"
 }
 
 Write-Host "Starting keyon.exe..." -ForegroundColor Cyan

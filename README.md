@@ -342,7 +342,10 @@ sendKeys=#1
 1. 使用当前用户目录下的 Scoop AutoHotkey 路径：`%USERPROFILE%\scoop\apps\autohotkey\current\Compiler\Ahk2Exe.exe` 和 `%USERPROFILE%\scoop\apps\autohotkey\current\v2\AutoHotkey64.exe`。
 2. 停止正在运行的 `keyon.exe`。
 3. 将 `keyon.ahk` 编译为 `keyon.exe`。
-4. 编译成功后重新启动 `keyon.exe`。
+4. 编译成功后，在运行脚本的当前用户开始菜单“程序”目录创建或更新 `Keyon.lnk`，目标和图标指向本项目的 `keyon.exe`，工作目录为项目根目录。创建失败会输出警告，但仍继续启动程序。
+5. 重新启动 `keyon.exe`。
+
+快捷方式供 uTools 的应用搜索识别，输入 `keyon` 即可搜索启动。若暂未出现，可重启 uTools 后重试。项目移动后需重新编译，以更新快捷方式中的路径；删除项目时可手动移除该快捷方式。若使用其他管理员账户运行编译脚本，快捷方式会写入该管理员账户的开始菜单。
 
 编译成功后，可以添加开机启动任务：
 
