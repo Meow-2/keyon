@@ -203,7 +203,7 @@ switchMethod=dll
 
 字段含义：
 
-- `profile`：输入法配置档，当前支持 `microsoftPinyin` 和 `wechatInput`。
+- `profile`：输入法配置档，当前支持 `microsoftPinyin`、`wechatInput` 和 `doubaoInput`。豆包输入法通过转换码识别中英文，但直接写入转换码不会改变实际输入状态，因此默认模拟左 Shift 完成切换。
 - `[general]` 下的 `switchMethod`：默认切换方式，支持 `dll`、`lShift`、`rShift`、`ctrlSpace`。
 - `[hotkey.*]` 下的 `switchMethod`：可选；覆盖单个热键的切换方式，省略时使用 `[general]` 的默认值。
 - `checkTimeout`：读取输入法状态的超时时间，单位毫秒。

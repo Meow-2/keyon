@@ -38,7 +38,7 @@ class imeManager {
     this.config := configReader(configPath)
     this.enabled := this.config.readBool("general", "enabled", true)
     this.profile := this.config.readText("general", "profile", "microsoftPinyin")
-    this.switchMethod := this.normalizeSwitchMethod(this.config.readText("general", "switchMethod", "dll"))
+    this.switchMethod := this.normalizeSwitchMethod(this.config.readText("general", "switchMethod", this.getDefaultSwitchMethod()))
     this.checkTimeout := this.config.readNumber("general", "checkTimeout", 500)
     this.cnConversionMode := this.config.readNumber("general", "cnConversionMode", this.getDefaultCnConversionMode())
     this.appDefaultsEnabled := this.config.readBool("appDefaults", "enabled", false)
@@ -109,6 +109,12 @@ class imeManager {
 
     switchMethod := IsObject(currentRule) && currentRule.switchMethod != "" ? currentRule.switchMethod : this.switchMethod
 
+    ; 豆包会接受 IMC_SETCONVERSIONMODE 并改变读数，但实际输入状态不会随之切换。
+    ; 旧配置中的 dll 自动回退为模拟左 Shift，避免出现“转换码变了但仍然输入中文”的假切换。
+    if this.usesConversionModeStateDetection() && switchMethod = "dll" {
+      switchMethod := "lShift"
+    }
+
     switch switchMethod {
       case "dll":
         return this.setInputStateByDll(targetState)
@@ -140,12 +146,15 @@ class imeManager {
       return "EN"
     }
 
-    openStatus := this.getOpenStatus(hwnd)
-    if !openStatus {
+    conversionMode := this.getConversionMode(hwnd)
+    if this.usesConversionModeStateDetection() {
+      return (conversionMode & 1) ? "CN" : "EN"
+    }
+
+    if !this.getOpenStatus(hwnd) {
       return "EN"
     }
 
-    conversionMode := this.getConversionMode(hwnd)
     return (conversionMode & 1) ? "CN" : "EN"
   }
 
@@ -155,6 +164,10 @@ class imeManager {
     hwnd := hwnd ? hwnd : this.getFocusedWindow()
     if !hwnd {
       return false
+    }
+
+    if this.usesConversionModeStateDetection() {
+      return this.tryImeControl(hwnd, 0x1).ok
     }
 
     openStatusResult := this.tryImeControl(hwnd, 0x5)
@@ -607,16 +620,31 @@ class imeManager {
     }
   }
 
+  ; 豆包输入法不响应直接写入转换码，默认通过左 Shift 触发它自身的中英文切换。
+  getDefaultSwitchMethod() {
+    return this.usesConversionModeStateDetection() ? "lShift" : "dll"
+  }
+
   ; 根据输入法配置档返回默认中文转换码。
-  ; 微软拼音默认 1025，微信输入法默认 1；用户可用 cnConversionMode 覆盖。
+  ; 微软拼音默认 1025，微信输入法和豆包输入法默认 1；用户可用 cnConversionMode 覆盖。
   getDefaultCnConversionMode() {
     switch StrLower(Trim(this.profile)) {
       case "microsoftpinyin", "ms-pinyin", "ms_pinyin":
         return 1025
-      case "wechatinput", "wechat", "weixin":
+      case "wechatinput", "wechat", "weixin", "doubaoinput", "doubao":
         return 1
       default:
         return 1
+    }
+  }
+
+  ; 豆包输入法保持打开状态，通过转换码奇偶识别中英文；实际切换仍需触发输入法快捷键。
+  usesConversionModeStateDetection() {
+    switch StrLower(Trim(this.profile)) {
+      case "doubaoinput", "doubao":
+        return true
+      default:
+        return false
     }
   }
 
